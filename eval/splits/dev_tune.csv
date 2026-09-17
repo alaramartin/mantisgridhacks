@@ -1,0 +1,160 @@
+row_id,task_index,instruction,scoring_points
+0,task_6,"The cloud service system, cloudbed-1, experienced one failure within the time range of March 20, 2022, from 09:00 to 09:30. The specific component responsible for this failure and the underlying reason are currently unknown. You are tasked with identifying the root cause component and the root cause reason.","The only predicted root cause component is shippingservice-1
+The only predicted root cause reason is container read I/O load
+"
+1,task_1,"During the time range of March 20, 2022, from 09:30 to 10:00, the cloudbed-1 system experienced a single failure. The exact time of the root cause occurrence is currently unknown, which complicates the failure diagnosis process. Please identify the root cause occurrence datetime.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 09:54:59
+"
+2,task_1,"The cloud service system, cloudbed-1, experienced a failure within the time range of March 20, 2022, from 10:00 to 10:30. However, the exact time when the root cause of the failure occurred is currently unknown. Please identify the root cause occurrence datetime.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 10:25:33
+"
+3,task_6,"The cloud service system, cloudbed-1, experienced a failure within the time range of March 20, 2022, from 10:30 to 11:00. The specific component that caused the root failure and the underlying reason for the failure are currently unknown. Please identify the root cause component and the root cause reason.","The only predicted root cause component is node-1
+The only predicted root cause reason is node memory consumption
+"
+4,task_3,"The cloud service system cloudbed-1 experienced one failure within the time range of March 20, 2022, from 11:00 to 11:30. The specific component responsible for this failure is currently unknown. You are tasked with identifying the root cause component.","The only predicted root cause component is shippingservice-1
+"
+5,task_2,"The cloud service system, cloudbed-1, experienced a failure within the time range of March 20, 2022, from 11:30 to 12:00. The underlying reason for this failure is currently unknown. Please identify the root cause reason for the failure.","The only predicted root cause reason is container network packet corruption
+"
+7,task_6,"The cloud service system, cloudbed-1, experienced two failures within the time range of March 20, 2022, from 12:00 to 12:30. The specific components responsible for these failures and the underlying reasons are currently unknown. You are tasked with identifying the root cause component and the root cause reason.","The 1-th predicted root cause component is node-1
+The 1-th predicted root cause reason is node disk read I/O consumption
+The 2-th predicted root cause component is recommendationservice
+The 2-th predicted root cause reason is container CPU load
+"
+8,task_5,"The cloud service system, cloudbed-1, experienced a single failure within the time range of March 20, 2022, from 13:00 to 13:30. The exact time of the root cause occurrence and the affected component are currently unknown. You are tasked with identifying the root cause occurrence datetime and the root cause component in this failure.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 13:13:19
+The only predicted root cause component is node-2
+"
+10,task_1,"The cloud service system, cloudbed-1, may have experienced two failures within the time range of March 20, 2022, from 13:30 to 14:00. The exact times of these failures' occurrences are currently unknown. Your task is to determine the root cause occurrence datetime.","The 1-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 13:39:48
+The 2-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 13:51:51
+"
+11,task_1,"The cloud service system, cloudbed-1, experienced two failures within the time range of March 20, 2022, from 14:00 to 14:30. The exact time of the root cause occurrence is currently unknown, which makes diagnosing the issue challenging. Please pinpoint the root cause occurrence datetime.","The 1-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 14:23:15
+The 2-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 14:14:46
+"
+12,task_2,"The cloud service system, cloudbed-1, experienced a failure within the time range of March 20, 2022, from 16:00 to 16:30. The root cause of this failure is currently unknown. Your task is to identify the reason behind this issue.","The only predicted root cause reason is container network packet retransmission
+"
+13,task_5,"The cloudbed-1 system encountered a failure within the timeframe of March 20, 2022, from 16:30 to 17:00. At this point, the exact occurrence time of the root cause and the specific component involved in the failure are unknown. Your task is to determine the root cause occurrence datetime and the affected component.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 16:31:44
+The only predicted root cause component is currencyservice-0
+"
+14,task_5,"The cloud service system, cloudbed-1, experienced two failures within the time range of March 20, 2022, from 17:00 to 17:30. The exact time of occurrence and the affected components related to these failures are currently unknown. You are tasked with identifying the root cause occurrence datetime and the root cause component.","The 1-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 17:12:41
+The 1-th predicted root cause component is node-4
+The 2-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 17:23:19
+The 2-th predicted root cause component is paymentservice
+"
+15,task_1,"Between the time range of March 20, 2022, from 17:30 to 18:00, the system cloudbed-1 experienced a failure. The exact time when the root cause occurred remains unknown, complicating the diagnosis. Please determine the root cause occurrence datetime.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 17:40:22
+"
+16,task_5,"The cloud service system, cloudbed-1, experienced two failures within the time range of March 20, 2022, from 18:00 to 18:30. The exact time of the root cause occurrences and the affected components are currently unknown. Please identify the root cause occurrence datetime and the root cause component.","The 1-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 18:06:48
+The 1-th predicted root cause component is paymentservice
+The 2-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 18:24:06
+The 2-th predicted root cause component is emailservice
+"
+17,task_2,"During the specified time range of March 20, 2022, from 18:00 to 18:30, the cloud service system, cloudbed-1, experienced two failures. The reasons behind these failures are currently unknown. Your task is to identify the root cause reasons for these incidents.","The 1-th predicted root cause reason is container memory load
+The 2-th predicted root cause reason is container network packet corruption
+"
+18,task_6,"The cloud service system, cloudbed-1, encountered a failure within the time range of March 20, 2022, from 19:00 to 19:30. The root cause component and the underlying reasons for this failure are currently unknown. Please identify the root cause component and the root cause reason.","The only predicted root cause component is frontend-2
+The only predicted root cause reason is container network packet retransmission
+"
+20,task_6,"The cloud service system, cloudbed-1, experienced a failure within the time range of March 20, 2022, from 20:00 to 20:30. The specific component that caused the failure and the underlying reason for this incident are currently unknown. Please identify the root cause component and the root cause reason.","The only predicted root cause component is shippingservice2-0
+The only predicted root cause reason is container CPU load
+"
+22,task_4,"The cloud service system, cloudbed-1, may have experienced two failures within the time range of March 20, 2022, from 21:30 to 22:00. The exact time of occurrence and the underlying reasons for these failures are currently unknown. You are tasked with identifying the root cause occurrence datetime and the root cause reason.","The 1-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 21:30:16
+The 1-th predicted root cause reason is container memory load
+The 2-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 21:52:17
+The 2-th predicted root cause reason is node disk space consumption
+"
+25,task_7,"The cloud service system, cloudbed-1, experienced a failure within the time range of March 20, 2022, from 23:00 to 23:30. The exact time of the root cause occurrence, the affected component, and the underlying reason for this failure are currently unknown. Please identify the root cause occurrence datetime, the root cause component, and the root cause reason.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 23:09:26
+The only predicted root cause component is checkoutservice-2
+The only predicted root cause reason is container memory load
+"
+26,task_7,"During the time range of March 20, 2022, from 23:30 to March 21, 2022, 00:00, the cloud service system, cloudbed-1, experienced a failure. The exact component that caused the failure, the precise time of the root cause occurrence, and the underlying reason for this failure are currently unknown. Your task is to identify the root cause occurrence datetime, the root cause component, and the root cause reason.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-20 23:30:10
+The only predicted root cause component is productcatalogservice
+The only predicted root cause reason is container CPU load
+"
+29,task_6,"The cloud service system, cloudbed-1, encountered one failure within the time range of March 20, 2022, from 22:00 to 22:30. We currently do not know the exact component affected by this failure or the underlying reason for it. You are tasked with identifying both the root cause component and the root cause reason.","The only predicted root cause component is frontend-1
+The only predicted root cause reason is container network latency
+"
+31,task_2,"During the time range of March 20, 2022, from 14:00 to 14:30, the cloud service system, cloudbed-1, experienced two failures. The exact reasons for these failures are currently unknown. Please identify the root cause reason for these failures.","The 1-th predicted root cause reason is container CPU load
+The 2-th predicted root cause reason is container process termination
+"
+32,task_2,"Cloudbed-1 experienced a single failure within the specified time range of March 20, 2022, from 15:00 to 15:30. The underlying reason for this failure is currently unknown. You are tasked with identifying the root cause reason.","The only predicted root cause reason is container process termination
+"
+34,task_1,"The cloud service system, cloudbed-1, experienced two failures within the specified time range of March 21, 2022, from 01:00 to 01:30. The exact time of the root cause occurrence is currently unknown. Please investigate to determine the root cause occurrence datetime.","The 1-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 01:06:45
+The 2-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 01:20:30
+"
+37,task_3,"During the time range of March 21, 2022, from 02:00 to 02:30, the system cloudbed-1 experienced two failures. It is unclear which component within the system is responsible for these failures. Please identify the root cause component.","The 1-th predicted root cause component is node-5
+The 2-th predicted root cause component is recommendationservice
+"
+38,task_7,"The cloud service system, cloudbed-1, experienced a failure within the time range of March 21, 2022, from 03:30 to 04:00. The detailed information about the failure, such as the root cause component, the exact time of occurrence, and the underlying reason, is currently unknown. You are tasked with identifying the root cause component, the root cause occurrence datetime, and the root cause reason.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 03:39:14
+The only predicted root cause component is node-6
+The only predicted root cause reason is node disk write I/O consumption
+"
+39,task_4,"The cloud service system, cloudbed-1, experienced one failure within the time range of March 21, 2022, from 04:30 to 05:00. The exact occurrence time and reason for the root cause of this failure are currently unknown. Please identify the root cause occurrence datetime and the root cause reason.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 04:32:44
+The only predicted root cause reason is container network packet retransmission
+"
+40,task_5,"On March 21, 2022, between 05:00 and 05:30, the cloudbed-1 system experienced a failure. The exact datetime of the root cause occurrence and the component responsible for this failure are unknown. You are required to identify the root cause occurrence datetime and the root cause component.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 05:15:49
+The only predicted root cause component is node-4
+"
+42,task_4,"The cloud service system, cloudbed-1, experienced a failure within the time period of March 21, 2022, from 07:00 to 07:30. The exact time when the root cause occurred as well as the underlying reason for this failure are currently unknown. You need to identify and determine the root cause occurrence time and the reason behind the failure.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 07:26:56
+The only predicted root cause reason is container read I/O load
+"
+44,task_7,"The cloud service system, cloudbed-1, may have experienced two failures within the time range of March 21, 2022, from 07:30 to 08:00. The exact components involved in the failures, the precise time of occurrence, and the underlying reasons for these failures are currently unknown. You are tasked with identifying the root cause occurrence datetime, the root cause component, and the root cause reason.","The 1-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 07:46:11
+The 1-th predicted root cause component is node-6
+The 1-th predicted root cause reason is node disk read I/O consumption
+The 2-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 07:55:02
+The 2-th predicted root cause component is productcatalogservice-0
+The 2-th predicted root cause reason is container CPU load
+"
+45,task_6,"During the specified time range of March 21, 2022, from 08:00 to 08:30, the cloud service system, cloudbed-1, experienced a failure. The specific component responsible for the failure and the reason behind it are currently unknown. Please identify the root cause component and the root cause reason.","The only predicted root cause component is shippingservice-1
+The only predicted root cause reason is container CPU load
+"
+46,task_5,"The cloud service system, cloudbed-1, experienced one failure within the time range of March 21, 2022, from 08:30 to 09:00. The exact time of the root cause occurrence and the specific component responsible for this failure are currently unknown. You are tasked with identifying the root cause occurrence datetime and the root cause component.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 08:52:45
+The only predicted root cause component is node-1
+"
+47,task_7,"The cloud service system, cloudbed-1, encountered two failures within the time range of March 21, 2022, from 09:00 to 09:30. The exact time of the root cause occurrence, the component affected, and the underlying reason for these failures are currently unknown. You are tasked with identifying the root cause occurrence datetime, the root cause component, and the root cause reason.","The 1-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 09:06:25
+The 1-th predicted root cause component is productcatalogservice
+The 1-th predicted root cause reason is container CPU load
+The 2-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 09:26:30
+The 2-th predicted root cause component is checkoutservice
+The 2-th predicted root cause reason is container memory load
+"
+49,task_5,"The cloud service system, cloudbed-1, experienced a failure within the time range of March 21, 2022, from 09:30 to 10:00. The exact time of the root cause occurrence and the specific component responsible for the failure are currently unknown. You are tasked with identifying the root cause occurrence datetime and the root cause component.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 09:53:57
+The only predicted root cause component is shippingservice
+"
+50,task_2,"The cloud service system, cloudbed-1, experienced a failure within the time range of March 21, 2022, from 10:00 to 10:30. The precise reason behind this failure is unknown. Please determine the root cause reason.","The only predicted root cause reason is node CPU spike
+"
+52,task_1,"The cloud service system, cloudbed-1, experienced two failures within the time range of March 21, 2022, from 10:30 to 11:00. The exact time of the root cause occurrence is currently unknown. Please identify the root cause occurrence datetime.","The 1-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 10:37:56
+The 2-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 10:44:52
+"
+53,task_1,"The cloud service system, cloudbed-1, experienced a failure within the time range of March 21, 2022, from 11:30 to 12:00. The exact time of the root cause occurrence is currently unknown, complicating the diagnosis process. Please pinpoint the root cause occurrence datetime.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 11:40:30
+"
+54,task_6,"On March 21, 2022, between 13:30 and 14:00, the cloud service system, cloudbed-1, experienced a single failure. The specific component responsible for the failure and the underlying reason are currently unknown. Please identify the root cause component and the reason for this failure.","The only predicted root cause component is currencyservice
+The only predicted root cause reason is container memory load
+"
+55,task_2,"Within the time range of March 21, 2022, from 14:00 to 14:30, the cloud service system, cloudbed-1, experienced two failures. The root cause reason behind these failures is currently unknown. Please identify the root cause reason.","The 1-th predicted root cause reason is container read I/O load
+The 2-th predicted root cause reason is container write I/O load
+"
+56,task_7,"The cloud service system, cloudbed-1, experienced two failures within the time range of March 21, 2022, from 14:00 to 14:30. The exact times of occurrence, the affected components, and the issues' underlying reasons are currently unknown. You are tasked with identifying the root cause occurrence datetime, the root cause component, and the root cause reason.","The 1-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 14:08:21
+The 1-th predicted root cause component is emailservice
+The 1-th predicted root cause reason is container read I/O load
+The 2-th root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 14:16:53
+The 2-th predicted root cause component is emailservice
+The 2-th predicted root cause reason is container write I/O load
+"
+57,task_3,"The cloud service system, cloudbed-1, experienced one failure within the time range of March 21, 2022, from 14:30 to 15:00. The specific component responsible for this failure is currently unknown. Please identify the root cause component.","The only predicted root cause component is adservice
+"
+58,task_1,"The cloud service system, cloudbed-1, experienced a single failure within the specified time range of March 21, 2022, from 15:00 to 15:30. The exact time when the root cause occurred is currently unknown. Please identify the root cause occurrence datetime.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 15:08:39
+"
+61,task_7,"On March 21, 2022, from 16:30 to 17:00, the cloud service system, cloudbed-1, experienced a failure. However, the exact time of the root cause occurrence, the affected component, and the underlying reason for this failure are currently unknown. Please identify the root cause occurrence datetime, the root cause component, and the root cause reason.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 16:41:47
+The only predicted root cause component is node-5
+The only predicted root cause reason is node disk space consumption
+"
+64,task_3,"During the specified time range of March 21, 2022, from 22:00 to 22:30, the cloud service system cloudbed-1 experienced a failure. The particular component responsible for this failure is currently unknown. Please identify the root cause component of this failure.","The only predicted root cause component is node-5
+"
+65,task_4,"The cloud service system, cloudbed-1, experienced one failure within the time range of March 21, 2022, from 23:00 to 23:30. The exact time when the root cause occurred and the underlying reason for this failure are currently unknown. You are tasked with identifying the root cause occurrence datetime and the root cause reason.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 23:15:29
+The only predicted root cause reason is node disk space consumption
+"
+66,task_6,"The cloud service system, cloudbed-1, has experienced one failure within the time range of March 21, 2022, from 23:30 to March 22, 2022, at 00:00. The exact component causing this failure and the reason behind it are currently unknown. Please identify the root cause component and the root cause reason.","The only predicted root cause component is node-4
+The only predicted root cause reason is node CPU load
+"
+67,task_7,"The cloud service system, cloudbed-1, experienced a failure within the specified time range of March 21, 2022, from 03:00 to 03:30. The exact component responsible for the failure, the precise occurrence time, and the underlying reason for this failure are all currently unknown. Your task is to identify the root cause component, the root cause occurrence time, and the root cause reason.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 03:10:48
+The only predicted root cause component is checkoutservice
+The only predicted root cause reason is container network packet corruption
+"
+68,task_3,"The system, cloudbed-1, experienced a failure within the time range of March 21, 2022, from 12:00 to 12:30. There is one known failure, but the specific component responsible for this failure is currently unknown. Identify the root cause component that triggered this failure.","The only predicted root cause component is productcatalogservice
+"
