@@ -6,6 +6,8 @@ So most of this file is about what gets thrown away.
 """
 from __future__ import annotations
 
+import re
+
 from origin.evidence import build_evidence, grounded
 from origin.fixture import make_analysis, make_clear_analysis, make_empty_analysis
 from origin.router import fact_sheet
@@ -33,11 +35,14 @@ def test_all_sections_present_and_in_order():
 
 
 def test_facts_carry_the_file_the_id_and_an_epoch_so_a_judge_can_grep():
+    # Fixed at the CP3 merge: the assertions said cmdb_id= / epoch= / "median of 60 samples",
+    # but origin/facts.py renders the format PLAN specifies -- "F3 · file · cmdb_id · kpi —
+    # baseline median X (60 samples); ... (ts 1647738540)". Same four things, different spelling.
     md, _ = built()
     assert "metric_container.csv" in md
-    assert "cmdb_id=node-5.shippingservice-1" in md
-    assert "epoch=" in md
-    assert "median of 60 samples" in md          # derived numbers say what they are
+    assert "node-5.shippingservice-1" in md
+    assert re.search(r"\(ts \d{10}\)", md)
+    assert re.search(r"baseline median [\d.e+-]+ \(60 samples\)", md)   # derived numbers say what they are
 
 
 def test_ruled_out_names_the_demotion_reason():
@@ -97,7 +102,9 @@ def test_a_number_not_in_the_facts_fails_grounding():
 def test_a_sentence_citing_real_facts_and_numbers_passes():
     a = make_analysis()
     sheet = fact_sheet(a)
-    ok, bad = grounded("F1 shows shippingservice-1 reaching 2.7e+07 at its peak; "
+    # 2.7e7 is printed as the file holds it ("27000000.0"), so that is what a grounded
+    # sentence must cite; grounding stays a plain substring test on purpose.
+    ok, bad = grounded("F1 shows shippingservice-1 reaching 27000000.0 at its peak; "
                        "C2 followed it.", sheet, a)
     assert ok, bad
 

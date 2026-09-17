@@ -18,10 +18,7 @@ from origin.config import (BASE_RANGE_GUARD, DISAPPEAR_MIN_BASE, DOWN_IS_LOAD, D
                            SPIKE_MAX_SAMPLES, TAU, Z_CAP)
 from origin.contract import Signal, Window, legal_reasons
 
-try:
-    from origin.anomaly import score_series
-except ImportError:   # PLACEHOLDER: Person 2's origin.anomaly isn't merged yet; delete this fallback after it is
-    from tests._p1_score_stub import score_series
+from origin.anomaly import score_series      # Person 2's, PLAN §3
 
 EDGE_MIN_LEFT_S = 10          # stop adding trace signals when the deadline is this close
 
@@ -88,6 +85,15 @@ def _score(ts, vals, w: Window, kind="metric") -> tuple[dict, float, int] | None
     if not s or s["score"] < TAU or s["onset_ts"] is None:
         return None
     onset, breach = s["onset_ts"], s["breach_samples"]
+    if s.get("zero_baseline"):
+        # score_series ranks a zero-baseline series by z, which ties at Z_CAP, so its "peak" is the
+        # first breach rather than the largest value. The magnitude rules and the facts want the
+        # largest, so take it here (same rows, same file, just a different sample).
+        wm = (np.asarray(ts) >= c.lo_ts) & (np.asarray(ts) < c.hi_ts)
+        wt, wv = np.asarray(ts)[wm], np.asarray(vals)[wm]
+        if len(wv):
+            i = int(np.argmax(np.abs(wv - s["base_median"])))
+            s = {**s, "peak_ts": float(wt[i]), "peak_value": float(wv[i])}
     if BASE_RANGE_GUARD:
         onset, breach = _guarded_onset(ts, vals, s, w.base_lo_ts, w.base_hi_ts, c.lo_ts, c.hi_ts)
         if onset is None:
