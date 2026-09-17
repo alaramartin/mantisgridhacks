@@ -961,6 +961,14 @@ Print this to your human and stop:
 
 ## STRETCH (Person 1) — only after CP4 and only if the human says so
 
+> **STRETCH #1 (MCP server) is dropped** — see the CP1 entry in the CHECKPOINT LOG. `docs/scoring.md`
+> says Track 1 has no interface dimension and `PARTICIPANT_AGREEMENT.md` §8 assigns MCP to Track 2's
+> judging focus. Higher-value uses of any spare time, from `docs/scoring.md`'s own "worth doing, none
+> required" list: the failure taxonomy (**done**, `docs/engine-tuning.md`) and *"knowing when it doesn't
+> know"* stated as a result — the doc's example framing is *"above confidence T we'd abstain on 40% of
+> cases, and accuracy on the rest is 3×"*, which is P2's calibration table rewritten as an abstention
+> result. See also the extra eval row proposed in the CP4 entry (gate + Flash, no escalation).
+
 - [ ] `metric_mesh.csv` edge signals (quoted `kpi_name` with commas → always `csv`/pandas, never split).
 - [ ] `log_service.csv` error bursts per pod as `log_errors` signals.
 - [ ] Fix test: ridge counterfactual on pod CPU/memory → "Verifier check (simulated)" line in Ruled out.
@@ -1628,7 +1636,19 @@ Update this on `main` after each merge so the humans can `/clear` and resume.
 - [x] Checkpoint 1 — contract lock + traps + models (10:30) — merged on `main` by Person 1's machine (both branches,
       no conflicts; 36 tests pass; `eval/split.py` re-run on P1's machine reproduces the committed split byte for byte).
       P1 had already finished Phase 2 when the merge ran, so its loader is in this merge too.
-  - MCP decision at CP1 (required / optional): **PENDING — ask an organizer.**
+  - MCP decision at CP1 (required / optional): **RESOLVED from the governing docs, no organizer needed —
+    Track 1 does not want an interface and does not want MCP.** `docs/scoring.md`: *"**There's no interface
+    dimension.** Your agent runs headless and writes files; nobody watches it work. (Track 2 is the
+    visualization track.)"* `docs/PARTICIPANT_AGREEMENT.md` §8, which the docs say governs, splits the
+    track focus explicitly: *"Track 1: model accuracy, explanability, strength of evaluations, token
+    usage. Track 2: use of MantisGrid AI/MCP…"*. So the "use MantisGrid AI/MCP" slide item is Track 2's
+    criterion, not ours — the SPEC's framing of STRETCH #1 as "answers slide item 02" was wrong.
+    **Consequence: STRETCH #1 (our MCP server) is dropped, not deferred.** It would be unscored on all
+    four Track 1 criteria, it cannot appear in the judged Docker path anyway, and the presentation is
+    10% with a 4-minute budget that `docs/submission.md` already fills with the demo they ask for
+    ("Run a case live…, open the `evidence/` file it just wrote, and walk through what it ruled out.
+    Then show your eval"). The cut order does **not** need to give up the `log_service` or
+    `metric_service` signals to make room for it.
   - Files sorted by time / loader method: `metric_node` sorted; `trace_span` = ~10 time-sorted shards → **seek per shard**;
     `metric_container` / `metric_service` grouped by series → **read once per day, cached**; `log_service` unsorted →
     chunked, error lines only, cached per day (`config.LOAD_LOGS`, cut first). `log_proxy` never read.
