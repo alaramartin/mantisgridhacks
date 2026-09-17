@@ -1643,6 +1643,10 @@ Update this on `main` after each merge so the humans can `/clear` and resume.
     but `make dev` on P2's machine would have died as soon as P1's first edge signal appeared.
     Fixed at our end without touching run.py: `agents/origin.py` folds evidence to ASCII before
     returning it. **P1: no action needed, but do not be surprised that `→` renders as `->`.**
+  - **§4 trace gained one route value: `heuristic_fallback`** (plus `mode: "heuristic"`), written
+    when `origin/engine.py` is not importable. Only `eval/run_eval.py` reads this file, so nothing
+    of P1's changes — but §4 is shared contract, so it is logged here. It disappears once the
+    engine lands.
   - **P1's `tests/test_load.py::test_first_dev_case` now fails consistently here** (was flaky at CP2):
     `load_s < 30` against measured **34.9 s cold**. Isolated re-measurement on P2's machine:
     cold (first case of a day) **34.9 s**, warm same case **3.9 s**, warm second case **5.2 s**.

@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import agents.origin as ag              # noqa: E402
 from origin.fixture import INSTRUCTION  # noqa: E402
+from run import Solution                # noqa: E402
 from score import evaluate              # noqa: E402
 
 # score.py's own parser: what the evaluator will actually see.
@@ -118,3 +119,22 @@ def test_running_average_over_the_limit_forces_engine_only(tmp_path, monkeypatch
     sol = solve(tmp_path)
     assert "engine only for the rest of the run" in sol.evidence
     assert json.loads((tmp_path / "origin_trace.jsonl").read_text())["mode"] == "engine"
+
+
+def test_heuristic_fallback_still_writes_a_trace_line(tmp_path, monkeypatch):
+    """Until origin/engine.py lands the agent borrows the heuristic. It must
+    still trace: the eval harness joins on this file, and a case with no line
+    looks like a case that never ran."""
+    def no_engine(*a, **k):
+        raise ImportError("no module named origin.engine")
+
+    stub = Solution(prediction='```json\n{"1": {}}\n```', evidence="baseline")
+    monkeypatch.setattr(ag, "analyze", no_engine)
+    monkeypatch.setattr("agents.heuristic.solve", lambda i, d, c: stub)
+
+    sol = solve(tmp_path)
+    assert "not ORIGIN" in sol.evidence          # never passed off as our work
+    assert sol.prediction == stub.prediction
+    rec = json.loads((tmp_path / "origin_trace.jsonl").read_text().splitlines()[0])
+    assert rec["route"] == "heuristic_fallback"
+    assert rec["errors"] == ["origin.engine not importable"]

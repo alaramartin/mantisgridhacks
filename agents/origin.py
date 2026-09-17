@@ -229,8 +229,16 @@ def _via_heuristic(instruction: str, dataset_dir: Path, ctx: dict, t0: float) ->
     banner = ("> **This is the baseline heuristic, not ORIGIN.** `origin/engine.py` was "
               "not importable, so `agents/origin.py` fell back to `agents/heuristic.py`. "
               "No engine candidates, no model call, no causal filter.\n\n")
+    total = time.time() - t0
+    # Still trace it: the eval harness joins on this file, and a case that silently
+    # produces no line looks like a case that never ran.
+    write_trace(ctx.get("out_dir", "."), instruction, None,
+                {"route": "heuristic_fallback"}, [], "Low", "heuristic",
+                ["origin.engine not importable"],
+                {"engine": round(total, 2), "flash": 0.0, "strong": 0.0,
+                 "total": round(total, 2)})
     _RUN["cases"] += 1
-    _RUN["seconds"] += time.time() - t0
+    _RUN["seconds"] += total
     return Solution(prediction=sol.prediction,
                     evidence=_ascii(banner + (sol.evidence or "")),
                     usage=sol.usage)
