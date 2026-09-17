@@ -1702,9 +1702,31 @@ Update this on `main` after each merge so the humans can `/clear` and resume.
     build context. So the engine's share of the 20-minute limit is ~1.5 min, leaving ~18 min for
     routing — P2's ~21 s escalated case fits with room. P2's cold-load + escalation worry (≈51 s) does
     not reproduce here: the cold case in Docker was 15.3 s, not 34.9 s.
-  - **Routed path could not be verified at the merge: no `FEATHERLESS_API_KEY` in the shell**, so all
-    smoke cases took `route=engine_only` (no errors, 0 tokens). Nothing in the repo loads `.env` —
-    there is no `python-dotenv` — so the file alone does nothing; use `set -a; . ./.env; set +a`.
+  - **Routed path verified live after the human added the key** (`set -a; . ./.env; set +a` — nothing in
+    the repo loads `.env`, there is no `python-dotenv`, so the file alone does nothing). 3 dev_tune cases,
+    real API: **all three took `route=strong`**, flash and strong agreed on all three, grounding kept the
+    model prose, **$0.0075/case ($0.0213 of it GLM-5.2, 95%)**, 9,187 in / 322 out tokens per case,
+    11.1–27.5 s per case (the 27.5 s one is a cold engine load at 15.6 s + flash 7.6 + strong 3.6).
+    That matches P2's prediction that most cases escalate on the "all three fields asked" trigger, and
+    their ~$0.15 for a 20-case run. Confidence was `Low` on all three — correctly: two were below
+    `ESCALATE_MARGIN`, and on the third the model overruled the engine's C1. **Calibration note for the
+    REPORT:** the "model overruled the engine" bucket needs its own accuracy row, because on that case
+    the model was right and the engine's C1 was periodic noise.
+  - **Environment trap, cost us the first routed attempt (P1's Mac only).** `requirements.txt` says
+    `openai>=1.0`, which now resolves to **openai 3.14.1**; it vendors `httpx2`, whose response
+    decompression calls `process(output_buffer_limit=...)` and raises `TypeError: process() takes no
+    keyword arguments` against older `brotli`/`zstandard`. Every model call died *after* the HTTP
+    response arrived, so the agent recorded `route="fallback"` with **`errors: []` and 0 tokens** —
+    silent. Fixed locally with `python -m pip install -U brotli zstandard`. **The container is not
+    affected** (verified: a live GLM-4.7-Flash call inside the image works on the same openai 3.14.1).
+    Two follow-ups: (a) **P2 — should `requirements.txt` pin the versions we actually tested?** The
+    judges rebuild the image, and an unpinned `openai>=1.0` lets a future release land untested in the
+    graded run; (b) **P2 — `route="fallback"` with an empty `errors` list hides exactly this class of
+    failure.** A `TypeError` is not one of the exceptions `llm.ask` catches, so it escapes past
+    `ModelUnavailable` / `APITimeoutError` handling and whatever catches it upstream does not record it.
+  - Also worth knowing: on this Mac the bare `pip` is a different interpreter from `python`
+    (`/Library/Frameworks/...` vs `/opt/anaconda3/...`), so `pip install openai` "succeeded" while
+    `python -c "import openai"` still failed. Use `python -m pip` on this machine.
 - [x] Checkpoint 3 — first end-to-end ORIGIN (12:45) — **MERGED on `main`** by Person 1's machine
       (`--no-ff` person1 then person2; the only overlapping files were `PLAN.md` and `origin/config.py`,
       both keep-both-sides, no manual conflict). **147 tests pass on `main`.** P1's merge results are at
