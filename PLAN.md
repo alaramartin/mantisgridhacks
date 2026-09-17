@@ -1489,15 +1489,33 @@ Update this on `main` after each merge so the humans can `/clear` and resume.
       exclude data and secrets; SPEC v6.0 + PLAN v2 written; pushed to `main`.
   - Decision (humans): MCP = **STRETCH #1**, our own MCP server over the engine (`mcp_server.py`), outside the
     Docker path; MantisGrid's MCP is Track 2's API and unreachable from the judged container. Ask organizers at CP1.
-  - MCP decision at CP1 (required / optional):
-- [ ] Checkpoint 1 — contract lock + traps + models (10:30)
-  - Files sorted by time / loader method:
-  - UTC+8 confirmed / trace duration unit:
-  - Answer component forms (node / pod / service counts) → service candidates?:
-  - Models up, latencies, thinking switch, strong-tier decision:
-  - Holdout row_ids committed:
-  - Heuristic baseline:
-- [ ] ⏱ 11:00 load gate — cold / warm seconds, method:
+  - MCP decision: recorded under Checkpoint 1 below.
+- [x] Checkpoint 1 — contract lock + traps + models (10:30) — merged on `main` by Person 1's machine (both branches,
+      no conflicts; 36 tests pass; `eval/split.py` re-run on P1's machine reproduces the committed split byte for byte).
+      P1 had already finished Phase 2 when the merge ran, so its loader is in this merge too.
+  - MCP decision at CP1 (required / optional): **PENDING — ask an organizer.**
+  - Files sorted by time / loader method: `metric_node` sorted; `trace_span` = ~10 time-sorted shards → **seek per shard**;
+    `metric_container` / `metric_service` grouped by series → **read once per day, cached**; `log_service` unsorted →
+    chunked, error lines only, cached per day (`config.LOAD_LOGS`, cut first). `log_proxy` never read.
+  - UTC+8 confirmed / trace duration unit: **UTC+8 yes** (55/55 answer times inside their windows; sharp metric changes at
+    the answer time, noise at ±8 h). Trace timestamp **ms**, trace duration **µs**.
+  - Answer component forms (node / pod / service counts) → service candidates?: **node 20 · pod 10 · service 24** →
+    **yes, service-level candidates.** `<name>2-0` pods belong to service `<name>`. This also explains the heuristic's flat 0
+    on task_3 / task_5 (component-only asks): it can only name pods/nodes, never a bare service.
+  - Models up, latencies, thinking switch, strong-tier decision: all 7 priced GLM models up (plus unpriced `GLM-5.3`:
+    **never call it**, cost.py would KeyError). **Thinking OFF on every call** via
+    `extra_body={"chat_template_kwargs": {"enable_thinking": False}}` (thinking on: 0/4 parsed). Cheap = GLM-4.7-Flash
+    (2.4–3.7 s, 4/4 JSON) → GLM-5.3-Flash fallback (2/4). Strong = GLM-5.2 (1.5–17 s, 4/4) → GLM-5.1. Details:
+    `docs/model-findings.md`.
+  - Blockers raised by P2: (1) starter `llm.py` returns `""` on Flash models (answer is in `message.reasoning`), P2 patches
+    it first in Phase 2; (2) **Docker isn't installed on P2's machine.** Docker Desktop is installed on P1's Mac (daemon not
+    running at merge time), so it's the fallback for `make docker`.
+  - Holdout row_ids committed: **yes**, 21 holdout (3 per task) / 49 dev_tune in `eval/splits/split.json`. Nobody opens
+    holdout per-case results until CP4.
+  - Heuristic baseline: **0.073** mean on all 70 dev (2/70 fully solved; task_3 and task_5 = 0.000).
+- [x] ⏱ 11:00 load gate — cold **3.1 s** / warm **1.0 s** (metrics + traces, first dev case), method: day-cache for metrics,
+      seek per shard for traces. With logs: first case of a day 14.2 s, then 1.6–3 s. All 70 dev windows: mean 2.7 s, max
+      5.3 s, peak RSS 1.8 GB.
 - [ ] Checkpoint 2 — real window + anomalies (11:30)
 - [ ] Checkpoint 3 — first end-to-end ORIGIN (12:45)
   - Engine-only dev_tune vs heuristic:
