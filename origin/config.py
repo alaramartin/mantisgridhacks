@@ -17,6 +17,7 @@ MULTI_FAILURE_SEP_S = 300     # for n >= 2, prefer candidates with onsets this f
 MAX_CANDIDATES = 15
 ONSET_SHIFT_S = 0             # PLACEHOLDER: dev-tune may set -30; log it
 METRIC_SOURCES = ("metric_container", "metric_node", "metric_service")
+LOAD_LOGS = True              # log_service error lines (cut-order #1): ~11 s once per day, then cached
 # reason table: filled in Phase 3 from docs/data-notes.md kpi lists
 REASON_RULES: list[tuple[str, str, str, float]] = []   # (level, regex on kpi, reason, weight)
 

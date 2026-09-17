@@ -55,7 +55,11 @@ def test_first_dev_case(first_case):
     assert all(w.pod_service[p] in w.services for p in w.pods)
     assert set(w.edges.caller) | set(w.edges.callee) <= w.pods
     assert (w.edges.caller != w.edges.callee).all()
-    assert w.stats["load_s"] < 15
+    assert w.stats["load_s"] < 30                  # includes the one-off log day pass
+    if w.logs is not None:
+        assert list(w.logs.columns) == ["ts", "pod", "is_error", "text"]
+        assert w.logs.is_error.all() and (w.logs.text.str.len() <= 200).all()
+        assert len(w.logs) == 0 or (w.logs.ts.max() < 1e11 and w.logs.ts.min() >= w.base_lo_ts - READ_PAD_S)
 
 
 @needs_data
@@ -116,4 +120,5 @@ def test_deadline_skips_traces():
     q = pd.read_csv(DATA / "dev" / "query_dev.csv")
     w = load_window(parse_instruction(q.instruction[1]), DATA, deadline_ts=0.0)
     assert w.edges.empty and any("traces skipped" in n for n in w.stats["notes"])
+    assert "2022_03_21/log_service.csv" not in w.stats["files"] or w.stats["files"]["2022_03_21/log_service.csv"]["method"] == "day-cache"
     assert len(w.metrics)
