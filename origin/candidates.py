@@ -10,7 +10,8 @@ import math
 from collections import defaultdict
 
 from origin.config import (CAUSAL_DEMOTE, CAUSAL_EARLIER_S, MAX_CANDIDATES, MULTI_FAILURE_SEP_S,
-                           NODE_PROMOTE_MIN_PODS, NODE_PROMOTE_WINDOW_S, ONSET_MIN_FRAC, ONSET_SHIFT_S,
+                           NODE_PROMOTE_MEMBER_FRAC, NODE_PROMOTE_MIN_PODS, NODE_PROMOTE_WINDOW_S,
+                           NODE_SINGLE_POD_FRAC, ONSET_MIN_FRAC, ONSET_SHIFT_S,
                            REASON_REST_WEIGHT, SERVICE_MEMBER_FRAC, SERVICE_PROMOTE_FRAC,
                            SERVICE_PROMOTE_MIN_PODS, SHARED_CALLEE_BONUS, SIGNAL_MIN_FACTOR)
 from origin.contract import Candidate, Case, Signal, fmt_ts, legal_reasons
@@ -104,18 +105,26 @@ def rank(w, signals: dict[str, Signal], notes: list[str] | None = None) -> tuple
             _demote(c, f"{len(bad)} of {len(pods)} pods of {svc} went wrong within "
                        f"{_mins(NODE_PROMOTE_WINDOW_S)} of each other, so the service is the suspect")
 
-    # nodes: several of a node's pods went wrong around the node's own onset -> the node
+    # nodes: several of a node's pods went wrong around the node's own onset -> the node is the suspect.
+    # Exactly one -> the other way round: one pod's own load is what the node metrics are showing.
+    promoted_nodes = set()
     for n, nc in list(cands.items()):
         if nc.level != "node" or nc.onset_ts is None:
             continue
         pods = [cands[p] for p, node in pod_node.items() if node == n and p in cands and cands[p].onset_ts is not None
                 and abs(cands[p].onset_ts - nc.onset_ts) <= NODE_PROMOTE_WINDOW_S]
+        strongest = max((p.raw_score for p in pods), default=0.0)
+        pods = [p for p in pods if p.raw_score >= NODE_PROMOTE_MEMBER_FRAC * strongest]   # ignore bystanders
         if len(pods) >= NODE_PROMOTE_MIN_PODS:
+            promoted_nodes.add(n)
             nc.score = max(nc.score, max(p.raw_score for p in pods))
             nc.promoted_over = sorted(p.component for p in pods)
             for p in pods:
                 _demote(p, f"{len(pods)} pods on {n} went wrong within {_mins(NODE_PROMOTE_WINDOW_S)} of {n} "
                            f"({nc.signal_ids[0]}), so the node is the suspect")
+        elif len(pods) == 1 and pods[0].raw_score >= NODE_SINGLE_POD_FRAC * nc.raw_score:
+            _demote(nc, f"only one pod on {n} went wrong ({pods[0].component}, {pods[0].signal_ids[0]}), within "
+                        f"{_mins(NODE_PROMOTE_WINDOW_S)} of {n}: what {n}'s metrics show is that pod's own load")
 
     # causal filter: a pod whose node, or a pod it calls, went wrong clearly earlier
     edge_pairs = defaultdict(set)   # callee -> callers with an anomalous edge
@@ -127,13 +136,15 @@ def rank(w, signals: dict[str, Signal], notes: list[str] | None = None) -> tuple
         if c.level != "pod" or c.onset_ts is None:
             continue
         node = cands.get(pod_node.get(p, ""))
-        if node and node.onset_ts is not None and node.onset_ts <= c.onset_ts - CAUSAL_EARLIER_S:
+        if node is not None and node.demoted_by and node.component not in promoted_nodes:
+            node = None          # the node is itself a symptom of one pod, so it can't demote anything
+        if node and node.onset_ts is not None and node.onset_ts < c.onset_ts - CAUSAL_EARLIER_S:
             _demote(c, f"{node.component} (its node) went wrong {_mins(c.onset_ts - node.onset_ts)} earlier "
                        f"({node.signal_ids[0]})")
             continue
         for callee, callers in edge_pairs.items():
             cc = cands.get(callee)
-            if p in callers and cc and cc.onset_ts is not None and cc.onset_ts <= c.onset_ts - CAUSAL_EARLIER_S:
+            if p in callers and cc and cc.onset_ts is not None and cc.onset_ts < c.onset_ts - CAUSAL_EARLIER_S:
                 _demote(c, f"{callee}, which it calls, went wrong {_mins(c.onset_ts - cc.onset_ts)} earlier "
                            f"({cc.signal_ids[0]})")
                 break

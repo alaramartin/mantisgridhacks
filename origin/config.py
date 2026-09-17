@@ -8,10 +8,12 @@ BASELINE_S = 3600             # 60 min before the window
 READ_PAD_S = 120              # slack around every time filter
 EDGE_BUCKET_S = 30
 DISAPPEAR_MIN_BASE = 10       # baseline samples before "missing" means anything
-CAUSAL_EARLIER_S = 60         # dependency must be this much earlier to demote
+CAUSAL_EARLIER_S = 120        # dependency must be more than this much earlier to demote (2 samples)
 CAUSAL_DEMOTE = 0.3
 NODE_PROMOTE_MIN_PODS = 2
 NODE_PROMOTE_WINDOW_S = 120
+NODE_PROMOTE_MEMBER_FRAC = 0.5  # ... counting only pods at least this strong relative to the strongest
+NODE_SINGLE_POD_FRAC = 0.5    # a node with exactly one anomalous pod this strong is that pod's symptom
 SPIKE_MAX_SAMPLES = 3         # node CPU breach this short = "node CPU spike"
 MULTI_FAILURE_SEP_S = 300     # for n >= 2, prefer candidates with onsets this far apart
 MAX_CANDIDATES = 15

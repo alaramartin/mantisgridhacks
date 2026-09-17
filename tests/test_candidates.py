@@ -35,13 +35,36 @@ def test_rank_orders_by_score_and_margin():
     assert cands[0].reasons[0][0] == "container CPU load"
 
 
-def test_pod_on_earlier_node_is_demoted():
-    s = as_dict([sig(1, "api-0", "pod", score=40, onset=300),
-                 sig(2, "node-1", "node", kpi="system.mem.used", score=30, onset=0, votes={"node memory consumption": 1.0})])
+def test_pod_on_earlier_promoted_node_is_demoted():
+    """Two pods of the node went wrong with it, so the node is the cause and its pods are victims."""
+    s = as_dict([sig(1, "api-0", "pod", score=40, onset=60), sig(2, "web-0", "pod", score=38, onset=60),
+                 sig(3, "node-1", "node", kpi="system.mem.used", score=30, onset=0,
+                     votes={"node memory consumption": 1.0})])
+    cands, _ = rank(topo({"api-0": "node-1", "web-0": "node-1"}), s)
+    api = next(c for c in cands if c.component == "api-0")
+    assert cands[0].component == "node-1" and cands[0].promoted_over == ["api-0", "web-0"]
+    assert api.demoted_by and "2 pods on node-1" in api.demoted_by
+
+
+def test_pod_reacting_long_after_its_node_is_demoted():
+    s = as_dict([sig(1, "api-0", "pod", score=40, onset=600),
+                 sig(2, "node-1", "node", kpi="system.disk.used", score=12, onset=0,
+                     votes={"node disk space consumption": 1.0})])
     cands, _ = rank(topo({"api-0": "node-1"}), s)
     api = next(c for c in cands if c.component == "api-0")
-    assert cands[0].component == "node-1"
-    assert api.demoted_by and "node-1" in api.demoted_by and "5 min earlier" in api.demoted_by
+    assert api.demoted_by and "its node" in api.demoted_by and "10 min earlier" in api.demoted_by
+
+
+def test_node_with_one_anomalous_pod_is_that_pod_symptom():
+    """One pod's own I/O storm shows up in its node's metrics; the pod stays the suspect."""
+    s = as_dict([sig(1, "api-0", "pod", kpi="container_fs_reads_MB./dev/vda", score=40, onset=60,
+                     votes={"container read I/O load": 1.0}),
+                 sig(2, "node-1", "node", kpi="system.io.r_s", score=38, onset=0,
+                     votes={"node disk read I/O consumption": 1.0})])
+    cands, _ = rank(topo({"api-0": "node-1"}), s)
+    assert cands[0].component == "api-0" and not cands[0].demoted_by
+    node = next(c for c in cands if c.component == "node-1")
+    assert node.demoted_by and "only one pod" in node.demoted_by and "api-0" in node.demoted_by
 
 
 def test_most_pods_of_a_service_together_promote_the_service():
