@@ -186,6 +186,7 @@ All figures are committed in **`docs/figures/`** and regenerate with
 |---|---|---|
 | **Pipeline flowchart** | [`docs/figures/pipeline.png`](figures/pipeline.png) | Slide 2, full width |
 | **Holdout comparison table** | [`docs/figures/holdout_table.png`](figures/holdout_table.png) | Slide 3, top |
+| **All 70 cases, split by what we tuned on** | [`docs/figures/all70_table.png`](figures/all70_table.png) | Q&A: use it when another team quotes a 70-case number. Ours is **0.559 partial / 28-70 strict** for the engine, **0.524 / 26-70** for the shipped config, against the starter's **0.073 / 2-70** |
 | **Topology graph** | [`docs/figures/topology.png`](figures/topology.png) | Slide 3, bottom — the graph visual |
 | **Anomaly + suspects** | [`docs/figures/signal.png`](figures/signal.png) | Spare: use if asked how anomalies are detected |
 | **Accuracy vs cost** | [`docs/figures/cost.png`](figures/cost.png) | Spare: alternative to the table on slide 3 |

@@ -246,6 +246,59 @@ def fig_holdout_table(runs: Path, out: Path) -> None:
     fig.tight_layout(); fig.savefig(out, bbox_inches="tight", facecolor="white"); plt.close(fig)
 
 
+def fig_all70_table(per_case: Path, out: Path) -> None:
+    """All 70 dev cases per config, split into the 49 we tuned on and the 21 we did not.
+    Rendered from eval/results/per_case.csv so it cannot drift from the committed data."""
+    if not per_case.exists():
+        print("no per_case.csv, skipping the all-70 table"); return
+    d = pd.read_csv(per_case)
+    d = d[d.split.isin(["dev_tune", "holdout"])].drop_duplicates(
+        subset=["config", "split", "row_id"], keep="last")
+    order = ["engine", "routed-duel", "routed", "heuristic"]
+    label = {"engine": "engine  (no model calls)", "routed-duel": "routed-duel  ← SHIPPED",
+             "routed": "routed  (full escalation)", "heuristic": "heuristic  (starter baseline)"}
+    rows = []
+    for cfg in order:
+        g = d[d.config == cfg]
+        if len(g) < 70:
+            continue
+        dv, ho = g[g.split == "dev_tune"], g[g.split == "holdout"]
+        rows.append([label[cfg],
+                     f"{g.score.mean():.3f}", f"{(g.score == 1).sum()}/70",
+                     f"{dv.score.mean():.3f}", f"{(dv.score == 1).sum()}/49",
+                     f"{ho.score.mean():.3f}", f"{(ho.score == 1).sum()}/21"])
+    if not rows:
+        print("no config covers all 70 cases"); return
+    cols = ["all 70 dev cases", "partial", "strict", "partial", "strict", "partial", "strict"]
+    fig, ax = plt.subplots(figsize=(12, 0.46 * (len(rows) + 3.4)))
+    ax.axis("off"); ax.set_position([0, 0, 1, 0.74])
+    t = ax.table(cellText=rows, colLabels=cols, cellLoc="center", loc="center",
+                 colWidths=[0.30, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
+    t.auto_set_font_size(False); t.set_fontsize(11); t.scale(1, 1.75)
+    for (r_, c_), cell in t.get_celld().items():
+        cell.set_edgecolor("#d7dbe0")
+        if r_ == 0:
+            cell.set_facecolor("#eef1f4"); cell.set_text_props(weight="bold", color=INK)
+        else:
+            ship = order[r_ - 1] == "routed-duel"
+            cell.set_facecolor("#fbf3f2" if ship else "white")
+            cell.set_text_props(weight="bold" if ship else "normal", color=HL if ship else INK)
+        if c_ == 0:
+            cell.set_text_props(ha="left")
+        if c_ in (3, 4):
+            cell.set_alpha(0.97)
+    # group headers above the column pairs
+    for x, txt, col in ((0.455, "ALL 70", INK), (0.655, "49 tuned on (optimistic)", MUTE),
+                        (0.87, "21 NEVER tuned on", OK2)):
+        ax.text(x, 1.01, txt, transform=ax.transAxes, ha="center", fontsize=9.5,
+                color=col, fontweight="bold")
+    ax.set_title("Every dev case, split by what we tuned on\n"
+                 "the shipped config scores the same on both halves (0.524 / 0.524), which is the "
+                 "stability check we wanted; the starter baseline is 0.073 across all 70",
+                 loc="left", fontsize=10.5, pad=26, y=1.04)
+    fig.tight_layout(); fig.savefig(out, bbox_inches="tight", facecolor="white"); plt.close(fig)
+
+
 def fig_cost(runs: Path, out: Path) -> None:
     """Panel 3: the accuracy-vs-cost curve, from eval/results/runs.csv (holdout rows if present)."""
     if not runs.exists():
@@ -286,6 +339,7 @@ def main() -> None:
     fig_topology(a, w, OUT / "topology.png")
     fig_cost(ROOT / "eval" / "results" / "runs.csv", OUT / "cost.png")
     fig_holdout_table(ROOT / "eval" / "results" / "runs.csv", OUT / "holdout_table.png")
+    fig_all70_table(ROOT / "eval" / "results" / "per_case.csv", OUT / "all70_table.png")
     print("wrote", ", ".join(str(p.relative_to(ROOT)) for p in sorted(OUT.glob("*.png"))))
 
 
