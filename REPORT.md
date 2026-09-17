@@ -124,42 +124,90 @@ _Holdout numbers. n=21: a difference of one or two cases is a tie._
 
 <!-- END SUMMARY -->
 
-## Routed vs single model ⟨P2⟩
+## Routing: what we intended, what we measured, what we shipped
 
-<!-- P2: the required comparison. Headline sentences, computed not asserted, e.g. "routed reached X
-     of single-strong's partial score at Y% of its cost and Z% of its time". If the strong model buys
-     nothing, say so plainly -- docs/scoring.md explicitly prefers a defensible negative result. -->
+**Shipped configuration: `routed-duel`** — the engine, plus one cheap GLM call restricted to the
+engine's top two candidates, made only when the engine is genuinely torn.
 
-_TODO P2._
+We intended the GLM family to *improve* on the engine — cheap models for triage, a strong model for
+the hard reasoning, as `docs/models.md` describes. **It did not, and the effect is large enough to be
+a finding rather than noise.**
 
-**What we already know points one way, and we should say it:** on the 5 cases we ran both ways during
-demo selection, the **engine alone scored 5/5 strict while routed scored 3/5** — the strong model
-overrode a correct engine answer twice. One documented instance: dev row 0, engine top-1
-`shippingservice-1 / container read I/O load` (correct), strong model chose
-`emailservice2-0 / container network latency` at margin 0.06, scoring zero. The validator allowed it
-because the pick was a legal candidate with a legal reason. So the **override path** deserves its own
-row in the routing breakdown: *cases where the model agreed with engine C1* vs *cases where it
-overrode*, with accuracy for each. If overriding is net-negative, the fix is a validator rule (the
-model may only override when its pick has support comparable to C1's), not a prompt change — and our
-confidence rule already marks exactly those cases **Low**.
+![holdout comparison](docs/figures/holdout_table.png)
 
-## Routing breakdown ⟨P2⟩
+| what the model was allowed to do | holdout partial | strict | $/case |
+|---|---|---|---|
+| nothing (`engine`) | 0.524 | 7/21 | $0 |
+| adjudicate top-two, only when the engine is torn (**`routed-duel`, shipped**) | 0.524 | 7/21 | $0.000063 |
+| choose freely from 8 candidates, escalating to GLM-5.2 (`routed`) | **0.417** | 5/21 | $0.0073 |
 
-<!-- P2: % of cases by route (gate / flash / strong / fallback), mean score and $/case per route. -->
+**Three mechanisms, in order of damage.**
 
-_TODO P2._ From the 20-case Docker run: **gate 4, strong 16, flash-only 0, fallback 0, errors 0**.
-The gate answers ~20% of cases with **zero tokens**, which is the cheapest accuracy on the curve.
+1. **Generic priors overrule measured structure.** The engine encodes rules derived from this data: a
+   node with one busy pod is a symptom, not a cause; read-I/O faults are identified by absolute
+   magnitude; TCP retransmissions separate packet damage from plain latency. The model brings
+   plausible generic priors instead — "the loudest component is the cause", "a slow call means
+   latency" — which is exactly what those rules exist to correct.
+2. **A reason swap moves the timestamp with it.** The validator takes the answer time from the onset
+   of the signal supporting the *chosen* reason, so one override can lose component, reason **and**
+   time — three scoring points from a single decision. That is why the damage concentrates in the
+   task types that ask all three fields.
+3. **Escalation is aimed at the wrong cases** — see below.
 
-## Knowing when it doesn't know ⟨P2⟩
+**Worked example (dev row 0).** Engine top-1 `shippingservice-1 / container read I/O load`, correct.
+At margin 0.06 the strong model chose `emailservice2-0 / container network latency`. Legal candidate,
+legal reason, so the validator accepted it. Score zero.
 
-<!-- P2: accuracy by confidence level with counts, then the abstention framing docs/scoring.md asks
-     for: "above confidence T we would abstain on N% of cases, and accuracy on the rest is X times
-     higher". We never abstain in the prediction -- a blank and a wrong answer both score zero -- so
-     this is reported as an analysis, not as behaviour. -->
+**What the shipped config does instead.** On the holdout it consulted the model on **5 of 21 cases:
+it kept the engine's pick 4 times and overrode it once.** Two cases changed score — it **won row 63**
+(0.0 → 1.0) and **lost row 60** (1.0 → 0.0). Net zero, for **$0.0013 across a 20-case run**. At this
+restriction level the model is accuracy-neutral and nearly free, and it is the most model involvement
+our evidence supports.
 
-_TODO P2._ The confidence rule is fixed and stated in the evidence file for every case: **High** =
-margin ≥ 0.35, support ≥ 2, and any model called agreed with the engine; **Low** = margin < 0.15, or
-the model overrode the engine, or a fallback/error/deadline skip; **Medium** otherwise.
+## Why escalation is aimed at the wrong cases
+
+Escalation assumes a narrow margin means the engine is probably wrong. We tested that on dev-tune and
+it is close to false:
+
+| engine margin | cases | partial | strict |
+|---|---|---|---|
+| < 0.05 (least confident) | 13 | 0.538 | 38% |
+| 0.05–0.15 | 14 | 0.524 | 36% |
+| 0.15–0.35 | 7 | 0.429 | 29% |
+| ≥ 0.35 (the gate fires) | 15 | 0.655 | 53% |
+
+**Correlation between margin and correctness: r = 0.10 partial, r = 0.17 strict.** On its least
+confident cases the engine is still 38% strict — barely below its own average. "Ask a model when
+unsure" therefore does not target the cases that need help: a narrow margin measures how *close* the
+candidates are, not whether the top one is *right*. **This is a result about escalation routing, not
+just our implementation of it** — a useful trigger needs a signal that predicts correctness, and
+margin is not one.
+
+## Hypotheses we would test next, in priority order
+
+Time, not interest, is why these are hypotheses:
+
+1. **Less authority, not more context.** Allow an override only when the model's pick has support
+   comparable to C1's. Our failures are confident overrides, so a support test should cut the losses
+   while keeping the wins.
+2. **Find a trigger that predicts correctness** — agreement between independent signal kinds (metrics
+   *and* trace edges naming the same component), the number of distinct anomalous KPIs, or
+   disagreement between two cheap models — then re-test escalation against that.
+3. **Let the model ask for data rather than rank it.** Bounded query tools (`get_series`, `get_edge`,
+   each result becoming a new fact ID) would let it test a hypothesis instead of reordering a list.
+4. **Use the model where the engine has no edge: the prose.** Explainability outweighs accuracy in the
+   rubric, and a grounded natural-language "why" is the one output the engine cannot produce.
+5. **Show it the propagation graph**, not just the facts derived from it. We are sceptical — the engine
+   already computes that, and our failures are confident overrides rather than missing information —
+   but it is the obvious thing to rule in or out.
+
+**Comparison to the published state of the art, stated carefully.** `docs/scoring.md` reports
+RCA-Agent on Claude 3.5 Sonnet at **11.34% strict / 17.31% partial** across **all 335 OpenRCA cases on
+three systems**. Ours is **21 cases from one deployment of one system** — different denominator,
+different difficulty mix, **not like-for-like**, and at n = 21 one case moves our strict rate ~5
+points. What we can say: on the cases we can see, 33% strict is roughly three times that rate, scored
+by the benchmark's own evaluator. Against the starter baseline on those same 21 cases: **0.524 vs
+0.111 partial, 7/21 vs 1/21 strict.**
 
 ## Cost and time ⟨P2⟩
 
