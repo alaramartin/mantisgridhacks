@@ -22,7 +22,10 @@ ONSET_SHIFT_S = 0             # global shift applied to every answer time (dev-t
 # ENDS at T (60 s apart in this dataset), so the fault started somewhere in (T-60, T]; the midpoint
 # is the honest estimate against the evaluator's 60 s tolerance. A trace bucket is already labelled
 # with its start, so it needs no shift. Tuned on dev-tune (49 cases), logged in REPORT.md.
-ONSET_SHIFT_BY_KIND = {"metric": -30.0, "disappear": -30.0}
+# -20 s, not the -30 s midpoint: both score 25/38 time answers inside the 60 s tolerance on dev-tune,
+# but -30 leaves 5 of those answers within 5 s of the boundary and -20 leaves 2 (median slack 38 s vs
+# 28 s). The judged deployment samples on a different phase, so slack is worth more than the midpoint.
+ONSET_SHIFT_BY_KIND = {"metric": -20.0, "disappear": -20.0}
 METRIC_SOURCES = ("metric_container", "metric_node", "metric_service")
 LOAD_LOGS = True              # log_service error lines (cut-order #1): ~11 s once per day, then cached
 # reason table (docs/data-notes.md kpi lists): (level, regex on the raw kpi_name, reason, weight).
