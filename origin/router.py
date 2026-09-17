@@ -355,7 +355,20 @@ def route(a: Analysis, llm, mode: str, deadline: float) -> dict:
         return d
 
     # --- duel: one cheap call, two candidates, only when the engine is shaky ---
-    if os.environ.get("ORIGIN_DUEL") and len(a.candidates) >= 2 and n == 1:
+    if os.environ.get("ORIGIN_DUEL"):
+        # Multi-failure cases do not duel: a duel is a two-way choice for ONE
+        # answer, and there is no version of it that picks n distinct culprits.
+        # They must NOT fall through to the escalation path below -- that is the
+        # unrestricted routing this mode exists to replace, and the two
+        # multi-failure cases we diagnosed by hand (dev_tune rows 48 and 51) were
+        # both ones the model broke. So they take the engine's answer.
+        if n > 1:
+            d["notes"].append(f"{n} failures: duel mode answers from the engine "
+                              "(a duel decides between two candidates for one answer)")
+            return d
+        if len(a.candidates) < 2:
+            d["notes"].append("only one candidate: nothing to duel against")
+            return d
         if a.margin >= DUEL_MARGIN:
             d["route"] = "gate"
             d["notes"].append(f"gated: margin {a.margin:.2f} >= {DUEL_MARGIN}, the "

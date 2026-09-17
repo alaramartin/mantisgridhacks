@@ -248,3 +248,26 @@ def test_duel_rejects_a_pick_outside_the_two(monkeypatch):
     d = router.route(a, llm, "routed", FAR)
     assert d["route"] == "engine_only"
     assert any("outside the two" in e for e in d["errors"])
+
+
+def test_duel_never_escalates_on_multi_failure_cases(monkeypatch):
+    """The first cut only engaged duel mode when n == 1, so two-failure cases
+    fell through to the unrestricted escalation path this mode exists to
+    replace -- a third of dev_tune ran the wrong agent. They now answer from
+    the engine instead."""
+    monkeypatch.setenv("ORIGIN_DUEL", "1")
+    a = make_analysis(n_failures=2); a.margin = 0.01      # thin: would have escalated
+    llm = FakeLLM()                                       # no scripted replies at all
+    d = router.route(a, llm, "routed", FAR)
+    assert llm.calls == [], "a multi-failure case must not call a model in duel mode"
+    assert d["route"] == "engine_only"
+    assert any("duel mode answers from the engine" in n for n in d["notes"])
+
+
+def test_duel_with_a_single_candidate_does_not_call(monkeypatch):
+    monkeypatch.setenv("ORIGIN_DUEL", "1")
+    a = make_analysis(); a.margin = 0.01
+    a.candidates = a.candidates[:1]
+    llm = FakeLLM()
+    d = router.route(a, llm, "routed", FAR)
+    assert llm.calls == [] and d["route"] == "engine_only"
