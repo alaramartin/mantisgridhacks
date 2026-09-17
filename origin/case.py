@@ -71,7 +71,7 @@ def _asks(text: str, notes: list[str]) -> dict[str, bool]:
 
 def _days(lo_ts: float, hi_ts: float) -> list[str]:
     start = datetime.fromtimestamp(lo_ts - BASELINE_S, tz=UTC8).date()
-    end = datetime.fromtimestamp(hi_ts, tz=UTC8).date()
+    end = datetime.fromtimestamp(hi_ts - 1, tz=UTC8).date()   # the window end is exclusive
     out = []
     d = start
     while d <= end:

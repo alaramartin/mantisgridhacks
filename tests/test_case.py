@@ -55,6 +55,11 @@ def test_window_with_second_date():
     assert c.hi_ts - c.lo_ts == 1800
 
 
+def test_window_ending_at_midnight_stays_in_its_day():
+    c = parse_instruction(DOC_EXAMPLE.replace("from 09:00 to 09:30", "from 23:30 to 00:00"))
+    assert c.days == ["2022_03_20"]
+
+
 def test_baseline_reaches_previous_day():
     c = parse_instruction(DOC_EXAMPLE.replace("from 09:00 to 09:30", "from 00:30 to 01:00"))
     assert c.days == ["2022_03_19", "2022_03_20"]
