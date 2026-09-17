@@ -53,8 +53,10 @@ cached read, and the Docker numbers below are from an uncached run.
 
 | config | runs | mean score | fully solved | easy | middle | hard | $/case | $/correct* | s/case mean/max | tok in/out |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `heuristic` | 1 | 0.111 (n=1) | 1.0/21 | 0.111 | 0.111 | 0.110 | $0.0000 | $0.0000 | 1.9 / 6.3 | 0 / 0 |
-| `engine` | 1 | 0.524 (n=1) | 7.0/21 | 0.667 | 0.444 | 0.333 | $0.0000 | $0.0000 | 7.7 / 25.5 | 0 / 0 |
+| `heuristic` | 2 | 0.111 ± 0.000 | 1.0/21 | 0.111 | 0.111 | 0.110 | $0.0000 | $0.0000 | 1.3 / 6.3 | 0 / 0 |
+| `engine` | 2 | 0.524 ± 0.000 | 7.0/21 | 0.667 | 0.444 | 0.333 | $0.0000 | $0.0000 | 6.0 / 25.5 | 0 / 0 |
+| `routed` | 1 | 0.417 (n=1) | 5.0/21 | -- | -- | -- | $0.0073 | $0.0175 | 12.6 / 27.1 | nan / nan |
+| `routed-duel` | 1 | 0.524 (n=1) | 7.0/21 | 0.556 | 0.556 | 0.333 | $0.0001 | $0.0001 | 6.6 / 18.7 | 735 / 38 |
 
 \* `$/correct` is noisy at n=21 — one case moves it a lot. Quoted for completeness, not for ranking.
 
@@ -62,59 +64,60 @@ cached read, and the Docker numbers below are from an uncached run.
 
 | config | runs | mean score | fully solved | easy | middle | hard | $/case | $/correct* | s/case mean/max | tok in/out |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `heuristic` | 1 | 0.056 (n=1) | 1.0/49 | 0.071 | 0.037 | 0.062 | $0.0000 | $0.0000 | 1.7 / 5.4 | 0 / 0 |
-| `engine` | 1 | 0.575 (n=1) | 21.0/49 | 0.548 | 0.575 | 0.645 | $0.0000 | $0.0000 | 7.7 / 36.8 | 0 / 0 |
+| `heuristic` | 2 | 0.056 ± 0.000 | 1.0/49 | 0.071 | 0.037 | 0.062 | $0.0000 | $0.0000 | 1.6 / 5.9 | 0 / 0 |
+| `engine` | 5 | 0.560 ± 0.020 | 19.8/49 | 0.548 | 0.575 | 0.645 | $0.0000 | $0.0000 | 3.8 / 36.8 | 0 / 0 |
 | `routed` | 1 | 0.440 (n=1) | 14.0/49 | 0.357 | 0.487 | 0.541 | $0.0059 | $0.0134 | 10.9 / 29.2 | 7,492 / 332 |
 | `routed-reason` | 1 | 0.559 (n=1) | 19.0/49 | 0.524 | 0.562 | 0.645 | $0.0063 | $0.0113 | 13.1 / 30.3 | 7,782 / 444 |
 | `routed-duel` | 1 | 0.524 (n=1) | 19.0/49 | 0.452 | 0.550 | 0.645 | $0.0001 | $0.0002 | 6.0 / 31.2 | 997 / 53 |
 
 ## 3. Score by task type (holdout)
 
-| task | `engine` |
-|---|---|
-| task_1 | 0.500 |
-| task_2 | 0.833 |
-| task_3 | 0.667 |
-| task_4 | 0.500 |
-| task_5 | 0.500 |
-| task_6 | 0.333 |
-| task_7 | 0.333 |
+| task | `engine` | `routed` | `routed-duel` |
+|---|---|---|---|
+| task_1 | 0.500 | 0.167 | 0.500 |
+| task_2 | 0.833 | 0.833 | 0.500 |
+| task_3 | 0.667 | 0.500 | 0.667 |
+| task_4 | 0.500 | 0.417 | 0.833 |
+| task_5 | 0.500 | 0.250 | 0.500 |
+| task_6 | 0.333 | 0.417 | 0.333 |
+| task_7 | 0.333 | 0.333 | 0.333 |
 
 ## 4. Where the routing went (`routed`, all splits)
 
 | route | cases | share | mean score | $/case | s/case |
 |---|---|---|---|---|---|
-| `strong` | 69 | 47% | 0.435 | $0.0084 | 15.8 |
-| `gate` | 39 | 27% | 0.654 | $0.0000 | 1.3 |
-| `engine_only` | 17 | 12% | 0.745 | $0.0000 | 4.2 |
-| `duel` | 15 | 10% | 0.233 | $0.0002 | 11.6 |
-| `flash` | 6 | 4% | 0.500 | $0.0022 | 9.6 |
+| `strong` | 87 | 46% | 0.445 | $0.0084 | 15.5 |
+| `gate` | 45 | 24% | 0.567 | $0.0000 | 1.8 |
+| `engine_only` | 29 | 15% | 0.712 | $0.0000 | 4.5 |
+| `duel` | 20 | 11% | 0.325 | $0.0002 | 11.0 |
+| `flash` | 7 | 4% | 0.429 | $0.0019 | 9.0 |
 | `fallback` | 1 | 1% | 0.000 | $0.0075 | 25.4 |
 
 ## 5. Knowing when it doesn't know (all model configs, per split)
 
 | split | confidence | cases | share | mean score | fully solved | note |
 |---|---|---|---|---|---|---|
-| dev_tune | High | 50 | 26% | 0.740 | 30/50 |  |
-| dev_tune | Medium | 28 | 14% | 0.411 | 8/28 |  |
-| dev_tune | Low | 118 | 60% | 0.460 | 35/118 |  |
-| holdout | High | 4 | 19% | 0.312 | 0/4 | **too small to read** |
-| holdout | Medium | 4 | 19% | 0.250 | 0/4 | **too small to read** |
-| holdout | Low | 13 | 62% | 0.673 | 7/13 |  |
+| dev_tune | High | 102 | 26% | 0.738 | 60/102 |  |
+| dev_tune | Medium | 64 | 16% | 0.367 | 16/64 |  |
+| dev_tune | Low | 225 | 58% | 0.498 | 74/225 |  |
+| holdout | High | 15 | 18% | 0.283 | 0/15 |  |
+| holdout | Medium | 16 | 19% | 0.234 | 0/16 |  |
+| holdout | Low | 53 | 63% | 0.637 | 26/53 |  |
 
-_**The two splits disagree, so we do not claim calibration.** On dev_tune High beats Low (0.740 vs 0.460, n=50); on the holdout it is the worse bucket (0.312 vs 0.673, n=4). Margin, the main input to the rule, correlates with score at only +0.06 on dev_tune and mean score is flat across all four margin quartiles -- so the dev_tune ordering may itself be chance, and we read the label as weakly informative at best._
+_**The two splits disagree, so we do not claim calibration.** On dev_tune High beats Low (0.738 vs 0.498, n=102); on the holdout it is the worse bucket (0.283 vs 0.637, n=15). Margin, the main input to the rule, correlates with score at only +0.06 on dev_tune and mean score is flat across all four margin quartiles -- so the dev_tune ordering may itself be chance, and we read the label as weakly informative at best._
 
 ## 6. Failure taxonomy — the first thing wrong, per missed scoring point
 
 | first thing wrong | `engine` | `routed` | `routed-reason` | `routed-duel` |
 |---|---|---|---|---|
-| component wrong | 18 | 13 | 10 | 10 |
-| reason wrong | 26 | 21 | 18 | 20 |
-| time wrong (> 60 s off) | 20 | 21 | 15 | 14 |
-| **total missed** | 64 | 55 | 43 | 44 |
+| component wrong | 18 | 13 | 10 | 18 |
+| reason wrong | 26 | 21 | 18 | 28 |
+| time wrong (> 60 s off) | 20 | 21 | 15 | 20 |
+| **total missed** | 64 | 55 | 43 | 66 |
 
 ## 7. Headlines
 
+- **Do the models add anything over the engine?** **No** (0.524 engine vs 0.417 routed). The deterministic engine is the product; the models are not paying for themselves. Reported as a negative result.
 - **Engine vs the free baseline:** 0.524 vs 0.111, at $0.00 either way.
 
 _Holdout numbers. n=21: a difference of one or two cases is a tie._
