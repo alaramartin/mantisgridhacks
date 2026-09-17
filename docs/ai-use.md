@@ -42,14 +42,17 @@ draft; "team-written" means a human typed it.
 
 | Module | Owner | Origin |
 |---|---|---|
-| `run.py`, `llm.py`, `cost.py`, `score.py`, `agents/heuristic.py`, `agents/routed.py`, `scripts/validate_submission.py` | — | **MantisGrid starter, unmodified** (see `ATTRIBUTION.md`; `run.py`'s default `--agent` is the one edit) |
+| `run.py`, `cost.py`, `score.py`, `agents/heuristic.py`, `agents/routed.py`, `scripts/validate_submission.py` | — | **MantisGrid starter, unmodified** (see `ATTRIBUTION.md`; `run.py`'s default `--agent` is the one edit) |
+| `llm.py` | P2 | **MantisGrid starter, patched**: `_once()` now falls back to `message.reasoning` (see `ATTRIBUTION.md`) |
 | `origin/contract.py`, `origin/config.py` | P1 | team-written (typed from PLAN.md §1–§3) |
 | `origin/case.py`, `origin/timeslice.py`, `origin/load.py`, `origin/signals.py`, `origin/candidates.py`, `origin/facts.py`, `origin/engine.py` | P1 | _(fill in)_ |
 | `origin/anomaly.py` | P2 | AI-generated from the PLAN pseudocode, human-reviewed |
-| `origin/fixture.py`, `origin/router.py`, `origin/validate.py`, `origin/evidence.py` | P2 | _(fill in)_ |
-| `agents/origin.py` | P2 | _(fill in)_ |
+| `origin/fixture.py` | P2 | AI-generated placeholder, numbers chosen by the team from `docs/data-notes.md` |
+| `origin/router.py`, `origin/validate.py`, `origin/evidence.py` | P2 | AI-generated from the PLAN spec, human-reviewed |
+| `agents/origin.py` | P2 | AI-generated from the PLAN skeleton, human-reviewed |
 | `eval/split.py` | P2 | AI-generated, human-reviewed |
-| `eval/run_eval.py`, `eval/summarize.py` | P2 | _(fill in)_ |
+| `eval/run_eval.py` | P2 | AI-generated, human-reviewed |
+| `eval/summarize.py` | P2 | _(fill in)_ |
 | `REPORT.md`, `README.md`, `docs/model-findings.md`, `docs/ai-use.md` | P2 | AI-drafted from measured numbers, human-edited |
 
 ## Data

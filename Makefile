@@ -20,7 +20,7 @@ data: ## download and unzip the Market-cloudbed-1 bundle into data/ (1.3 GB -> ~
 	cd data && unzip -q track-1-Market-cloudbed-1.zip
 
 validate: ## run your agent on 2 dev cases and check the output shape
-	VAL_AGENT=$(or $(AGENT),agents.heuristic) $(PY) scripts/validate_submission.py --submission . \
+	VAL_AGENT=$(or $(AGENT),agents.origin) $(PY) scripts/validate_submission.py --submission . \
 	  --dataset data/$(SET) --queries data/$(SET)/dev/query_dev.csv
 
 dev: ## run your agent over all 70 cases -> $(OUT)/ (N=20 for the first 20)

@@ -148,6 +148,13 @@ evidence → node promotion in the causal filter → `single-flash` row → trac
 8. **Never present a fallback or engine-only run as the model deciding.**
 9. **Secrets:** `.env` is gitignored and dockerignored. Never print a key.
 10. **Keep `run.py`'s command line.** The only edit to `run.py` is its default `--agent`.
+11. **`score.py` is never edited** — it is OpenRCA's evaluator, vendored unchanged, and it
+    is the thing that grades us. **`llm.py` IS edited**, deliberately and with the organizers'
+    blessing (`llm.py:27` "tuning it is fair game"): one patch so Flash replies in
+    `message.reasoning` are not thrown away. Full justification and the disclosure checklist
+    are in Person 2's Phase 2, under "WE MODIFY AN ORGANIZER FILE HERE". Those are the only
+    two starter files with a rule attached; do not modify any other starter file without
+    adding it there.
 
 ---
 
@@ -1102,7 +1109,7 @@ Print this to your human and stop:
 
 ## Phase 2 — score_series, fixture, agent skeleton, harness (10:30–11:30, hard stop 11:30)
 
-- [ ] **`origin/anomaly.py` `score_series` (by 10:50).** Exactly §3.
+- [x] **`origin/anomaly.py` `score_series` (by 10:50).** Exactly §3.
 
   ```
   order = argsort(ts); ts, x = ts[order], values[order]; drop NaN / inf
@@ -1135,13 +1142,13 @@ Print this to your human and stop:
   all-zero baseline with 3 nonzero window points → score ≥ τ and an onset;
   a single spike (1 point) with k = 2 → score < τ; a step up at sample 10 →
   onset = ts[10], `first_value` = the raw value there; a drop → `direction="down"`.
-- [ ] **`origin/fixture.py` (by 11:00).** `make_analysis(n_failures=1) -> Analysis`
+- [x] **`origin/fixture.py` (by 11:00).** `make_analysis(n_failures=1) -> Analysis`
       hand-built with realistic shapes: 5 candidates (a pod with read I/O
       signals, its node, a caller pod demoted by an earlier callee, a pod with an
       `edge_gap` signal, another node), ~12 Signals with plausible numbers,
       `margin` 0.22, `engine_answers` for C1. Also `make_clear_analysis()` with
       margin 0.6 / support 3 (gate case) and a 2-failure variant. `# PLACEHOLDER: fixture until CP3`.
-- [ ] **Patch `llm.py` for Featherless's `reasoning` field (by 10:40) — BLOCKER, do this first.**
+- [x] **Patch `llm.py` for Featherless's `reasoning` field (by 10:40) — BLOCKER, do this first.**
       Measured at CP1 (`docs/model-findings.md` §3): Featherless returns the answer in
       `message.reasoning` with `message.content == ""` on **both Flash models, 4/4 calls**.
       It is not `reasoning_content` and there are no `<think>` tags. `llm.py`'s `_once()`
@@ -1160,21 +1167,73 @@ Print this to your human and stop:
       This is the **only** starter file we change beyond `run.py`'s default `--agent`.
       Record it in `README.md` and `ATTRIBUTION.md`, and tell Person 1 at the merge —
       anyone using the starter `llm.py` with a Flash model is silently getting empty strings.
+
+      ---
+
+      #### ⚠️ WE MODIFY AN ORGANIZER FILE HERE. Read this before touching it again.
+
+      **SHIPPED at CP2** (commit `d957af6`). The team asked whether patching the
+      organizers' code is allowed. It is, and here is the check, so nobody has to
+      re-litigate it at 2pm:
+
+      **What the rules actually freeze**
+      - `docs/submission.md`: *"Keep `run.py`'s command line as it is; change the agent."*
+        That is the only hard constraint, and it is about `run.py`'s CLI — which we have
+        not touched (we change only its `--agent` default, which the PLAN already allows).
+      - `score.py` is OpenRCA's evaluator, *"vendored unchanged"*. **Never edit it.**
+      - Nothing anywhere forbids editing `llm.py`.
+
+      **What `llm.py` says about itself** (`llm.py:27`, echoed at `docs/models.md:97`):
+      > "The policy here is a starting point, not the only sensible one — `docs/models.md`
+      > says what it is defending against, and tuning it is fair game."
+
+      `docs/models.md:43` also notes the API is OpenAI-compatible and *"the OpenAI SDK works
+      unchanged"* — i.e. `llm.py` is a convenience wrapper we could replace outright, not a
+      fixture of the harness.
+
+      **The honest caveat:** that "fair game" line is written about the *retry / fallback
+      policy*, and our patch is response *parsing*. So it sits next to the sanction rather
+      than squarely inside it. The load-bearing permission is the broader one: the starter is
+      a starting point; only `run.py`'s CLI and the scorer are fixed.
+
+      **Why it is safe — the part that would actually matter if we got it wrong.**
+      `llm.py`'s per-model token accounting is what `cost.py` and our judged cost numbers read.
+      The patch sits **after** that accounting block and changes only which field the answer
+      text is read from. Token counts, prices, the breaker and the retry loop are byte-identical.
+      It cannot flatter our cost or accuracy numbers — it only stops us throwing away a
+      response we have already paid for.
+
+      **Rejected alternative:** leave `llm.py` pristine and subclass it in
+      `origin/llm_client.py`, overriding `_once`. Same behaviour, zero diff against the
+      starter. Rejected because overriding a private method is more fragile than the patch
+      it replaces, and the disclosure obligation is identical either way.
+
+      **Disclosure obligations — all three must hold at submission:**
+      1. `ATTRIBUTION.md` → "Changes we made to the MantisGrid starter" ✅ done at CP2
+      2. `docs/ai-use.md` → `llm.py` row says "starter, patched" ✅ done at CP2
+      3. `README.md` → **STILL OWED.** README does not exist yet; it is P2's Phase 5
+         deliverable. The submission form asks what we changed, so this is not optional.
+
+      ---
       `tests/test_llm.py`: a stub response with `content=""` and `reasoning='{"a":1}'` must
       come back as `'{"a":1}'`; one with both populated must prefer `content`; `<think>`
       stripping must still work on both fields.
 
-- [ ] **Docker installed and `make docker` green (by 11:20) — BLOCKER for CP4, start early.**
+- [x] **Docker installed and `make docker` green (by 11:20) — BLOCKER for CP4, start early.**
       Checked at CP1: **Docker is not installed on Person 2's machine at all** (not on PATH,
       nothing in `Program Files`). Priority #1 needs `make docker` passing at 2 CPU / 8 GB by
       CP4, and Docker Desktop is a large download plus a reboot, so it cannot wait until 1:45.
-      Human action: install Docker Desktop, enable the WSL2 backend, confirm
-      `docker version` works, then `make docker` (builds the image and runs 2 dev cases).
-      If Docker cannot be installed in time, the fallback is for Person 1 to run
-      `make docker` on their machine and paste the output — but the image must be proven
-      somewhere before the submission, because judges run it.
+      **RESOLVED at CP2.** Docker Desktop 4.91.0 / engine 29.8.0 is installed on P2's
+      machine and the daemon is up. The image builds (10 s) and runs 2 dev cases at
+      `--cpus 2 --memory 8g` with the dataset mounted read-only. P1's Mac is no longer
+      needed as a fallback. Two wrinkles, both handled in `scripts/docker_smoke.sh`:
+      `docker` is not on PATH (it lives in `C:/Program Files/Docker/Docker/resources/bin`)
+      and **`make` does not exist on this machine at all**, so `make docker` itself cannot
+      run here — the script is the same commands, and judges run the Dockerfile, not our
+      Makefile. Git Bash also needs `MSYS_NO_PATHCONV=1` or it rewrites `/data` and `/out`
+      into Windows paths and mounts the wrong thing.
 
-- [ ] **Model tiers + agent skeleton (by 11:20).** Append to `origin/config.py` below `# --- PERSON 2 ---`:
+- [x] **Model tiers + agent skeleton (by 11:20).** Append to `origin/config.py` below `# --- PERSON 2 ---`:
 
   ```python
   # tiers confirmed by the CP1 spike (docs/model-findings.md): 4.7-Flash parsed 4/4 at
@@ -1237,7 +1296,7 @@ Print this to your human and stop:
     guess with the window start) and evidence containing the traceback summary.
     **Never return an empty prediction.**
   - If `asks` has no field at all (parser failed), include all three fields.
-- [ ] **Eval harness v1 (by 11:30).** `eval/run_eval.py`:
+- [x] **Eval harness v1 (by 11:30).** `eval/run_eval.py`:
 
   ```
   python -m eval.run_eval --config <name> --split holdout|dev_tune [--repeat R] [--limit N]
@@ -1293,7 +1352,7 @@ Print this to your human and stop:
 
 ## Phase 3 — Router, validator, confidence, evidence (11:30–12:45, hard stop 12:45; lunch at the keyboard 12:00–12:30)
 
-- [ ] **`origin/router.py` — fact sheet + calls (by 12:05).**
+- [x] **`origin/router.py` — fact sheet + calls (by 12:05).**
 
   ```python
   def fact_sheet(a: Analysis) -> str
@@ -1345,7 +1404,7 @@ Print this to your human and stop:
   - Parse: `re.search(r"\{.*\}", text, re.S)` → `json.loads`; on failure record the error.
   - `ModelUnavailable` / any exception → record, `route = "fallback"`, picks from the last valid stage or None.
   - Time each stage into `seconds`.
-- [ ] **`origin/validate.py` (by 12:20).**
+- [x] **`origin/validate.py` (by 12:20).**
 
   ```python
   def validate(a: Analysis, d: dict) -> tuple[list[dict], str, list[str]]   # answers, confidence, notes
@@ -1360,7 +1419,7 @@ Print this to your human and stop:
     called, or the final component(s) == engine's); `Low` if `a.margin < ESCALATE_MARGIN`, or the final
     top component ≠ engine C1, or the route is `fallback`/`engine_only` because of an error or deadline, or
     the engine noted a failed stage; else `Medium`. Also a one-sentence `confidence_why` from which rule fired.
-- [ ] **`origin/evidence.py` (by 12:40).**
+- [x] **`origin/evidence.py` (by 12:40).**
 
   ```python
   def build_evidence(a, answers, d, confidence, notes, seconds) -> str
@@ -1385,7 +1444,7 @@ Print this to your human and stop:
     "model prose removed: it cited a number not found in the data" to notes.
   - `tests/test_evidence.py` on the fixture: all four sections present; a `why` containing "73.2"
     (not in facts) is dropped; a `why` citing `F3` and a fact's number is kept.
-- [ ] **Switch the default agent (12:45).** In `run.py` change only
+- [x] **Switch the default agent (12:45).** In `run.py` change only
       `p.add_argument("--agent", default="agents.heuristic", …)` → `default="agents.origin"`.
       In `Makefile` `validate`, change `agents.heuristic` → `agents.origin`. Until CP3, `agents/origin.py`
       uses the fixture when `ORIGIN_FIXTURE=1`, and otherwise imports `origin.engine`
@@ -1581,10 +1640,84 @@ Update this on `main` after each merge so the humans can `/clear` and resume.
 - [x] ⏱ 11:00 load gate — cold **3.1 s** / warm **1.0 s** (metrics + traces, first dev case), method: day-cache for metrics,
       seek per shard for traces. With logs: first case of a day 14.2 s, then 1.6–3 s. All 70 dev windows: mean 2.7 s, max
       5.3 s, peak RSS 1.8 GB.
-- [ ] Checkpoint 2 — real window + anomalies (11:30)
-- [ ] Checkpoint 3 — first end-to-end ORIGIN (12:45)
-  - Engine-only dev_tune vs heuristic:
-  - Grep test passed:
+- [x] Checkpoint 2 — real window + anomalies (11:30) — P2 side complete on `person2`; `main` merged in first
+      (fast-forward, no conflicts). **64 tests pass.**
+  - `llm.py` reasoning patch: shipped, 7 tests. Recorded in `ATTRIBUTION.md` and `docs/ai-use.md`.
+    **P1: this changes a starter file** — the only one besides `run.py`'s default `--agent`.
+  - `score_series`: real implementation in `origin/anomaly.py`, 13 tests. P1 can delete
+    `tests/_p1_score_stub.py` and import `origin.anomaly.score_series` instead.
+  - **Contract finding for P1:** `step` (smallest positive gap between distinct baseline values)
+    is the scale floor. A baseline that is perfectly flat apart from ONE outlier has only two
+    distinct values, so that outlier's distance becomes the floor and masks the window. Real
+    jittery telemetry is unaffected; pinned as deliberate in
+    `tests/test_anomaly.py::test_two_valued_baseline_lets_an_outlier_become_the_step_floor`.
+    Not changed unilaterally — it is shared contract.
+  - Heuristic on **dev_tune**: mean **0.056**, 1/49 fully solved (all-70 was 0.073). That is
+    the number ORIGIN has to beat. task_2/3/4/5 are flat 0.000.
+  - Docker: **resolved early**, see the Phase 2 item above. `scripts/docker_smoke.sh` is green.
+  - `agents/origin.py` runs on the fixture and degrades to the engine answer while
+    `origin/router.py` / `validate.py` / `evidence.py` are still Phase 3.
+  - **Flaky test for P1:** `tests/test_load.py::test_first_dev_case` asserts `load_s < 30`.
+    On P2's Windows box that is 23 s in isolation but **31.2 s when the full suite runs
+    alongside anything else** (it failed once during this phase, passed on re-run). P1's own
+    gate measured 14.2 s cold on their machine. Not changed — it is P1's test and P1's
+    threshold — but the margin is thin enough that the judged 2-CPU container may cross it.
+- [ ] Checkpoint 3 — first end-to-end ORIGIN (12:45) — **P2 side complete on `person2`, NOT merged
+      to main (human asked to hold).** Router, validator, confidence and evidence all land with tests:
+      **115 tests pass** (excluding `test_load.py`, see below). `run.py` and `Makefile validate` now
+      default to `agents.origin`.
+  - Engine-only dev_tune vs heuristic: **blocked on P1's `origin/engine.py`.** Until it imports,
+    `agents/origin.py` falls back to `agents/heuristic.py` per the PLAN, with a banner at the top of
+    every evidence file so a heuristic answer is never passed off as an ORIGIN one.
+  - Grep test passed: _pending the merge with P1._
+  - **DEVIATION FROM THE PLAN — strong tier runs with thinking OFF.** PLAN Phase 3 said to leave
+    thinking on for the strong call; that contradicts the CP1 decision ("thinking OFF on every call").
+    Measured at CP3 on GLM-5.2, this exact prompt, 3 calls each:
+    | thinking | parsed | wall | out tokens |
+    |---|---|---|---|
+    | ON | **2/3** (one hit the 700 cap and returned no JSON) | 9.5–28.7 s | 506–700 |
+    | OFF | **3/3** | 2.4–10.7 s | 146–163 |
+    ON is worse on all three SPEC axes, and 2/3 of those calls exceeded `CALL_TIMEOUT_S = 25` —
+    which would trip llm.py's breaker and silently demote us to GLM-5.1 for the rest of the run.
+    Pinned in `tests/test_router.py::test_strong_call_also_turns_thinking_off`.
+  - **Live end-to-end probe** (one routed case on the fixture, real API): flash 5.3 s → escalated →
+    strong 23.4 s, both parsed, model prose passed the grounding check, **$0.0059 for the case**.
+    Confirms the llm.py `reasoning` patch against the live API.
+  - **Escalation frequency — priced, and it is NOT a dollar problem.** The "all three fields asked"
+    rule fires on its own and most tasks ask all three, so as specced *most* cases reach GLM-5.2.
+    Costed from the live probe (1,862 billed tokens for the fixture sheet = 2.87 chars/token,
+    ~160 output tokens with thinking off), scaled to a full sheet (8 candidates / 40 facts
+    ≈ 4,545 tokens):
+    | | escalated case | 20-case judged run | limit |
+    |---|---|---|---|
+    | fixture-size prompt | $0.0035 | $0.07 | $25 |
+    | full-size prompt | $0.0074 | **$0.15** | **$25** |
+    That is 0.6 % of the run limit and $0.007 against a $3/case cap; all 70 dev cases escalating is
+    ~$0.52. **Do not spend tuning time on dollars.** Failed calls carry no usage and the breaker caps
+    retries, so there is no runaway path either.
+  - **What escalation does cost is seconds.** After the thinking-off change, strong is 2.4–10.7 s
+    (was 9.5–28.7 s). A typical escalated case is ~21 s (warm load 5 + flash 5 + strong 11) against
+    the 60 s/case average. The combination to watch is **a cold engine load on a case that also
+    escalates**: 34.9 + 5 + 11 ≈ 51 s here, under 60 but not comfortably — and that is native
+    Windows, not the judges' 2 CPU container. **CP4's `make docker` 20-case timing is the measurement
+    that settles it.** If it is over, cut the "all three fields asked" escalation trigger first.
+  - **`run.py` writes evidence as cp1252 on Windows.** `Path.write_text()` with no encoding, and that
+    call sits OUTSIDE run.py's per-case try/except — so one unencodable character kills the whole run,
+    not one case. Contract §2 puts `"caller → callee"` in every edge cmdb_id and U+2192 is not in
+    cp1252 (verified: `UnicodeEncodeError`). Judges run Linux/UTF-8 so this is a local-only hazard,
+    but `make dev` on P2's machine would have died as soon as P1's first edge signal appeared.
+    Fixed at our end without touching run.py: `agents/origin.py` folds evidence to ASCII before
+    returning it. **P1: no action needed, but do not be surprised that `→` renders as `->`.**
+  - **§4 trace gained one route value: `heuristic_fallback`** (plus `mode: "heuristic"`), written
+    when `origin/engine.py` is not importable. Only `eval/run_eval.py` reads this file, so nothing
+    of P1's changes — but §4 is shared contract, so it is logged here. It disappears once the
+    engine lands.
+  - **P1's `tests/test_load.py::test_first_dev_case` now fails consistently here** (was flaky at CP2):
+    `load_s < 30` against measured **34.9 s cold**. Isolated re-measurement on P2's machine:
+    cold (first case of a day) **34.9 s**, warm same case **3.9 s**, warm second case **5.2 s**.
+    P1's own gate measured 14.2 s cold, so this box is ~2.5x slower on the cold pass. Not changed —
+    P1's test, P1's threshold — but note our `CASE_SOFT_DEADLINE_S` is 45 s and a cold day plus a
+    strong call is already 35 + 24 s.
 - [ ] Checkpoint 4 — docker + final eval (1:45)
   - Holdout table (routed / single-strong / single-flash / engine / heuristic):
   - Docker 20-case time and peak memory:

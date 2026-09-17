@@ -25,3 +25,17 @@ Agreement FA8750-19-2-1000.
 
 One Track 2 scenario — the shared-volume storage incident — is synthetic and ours,
 not MIT's. Every synthetic record carries `metadata.synthetic = true`.
+
+## Changes we made to the MantisGrid starter
+
+The starter is otherwise unmodified. Two edits, both necessary:
+
+1. **`llm.py` — read `message.reasoning`.** Featherless returns the answer in
+   `choices[0].message.reasoning` with `message.content == ""` on both Flash
+   models (measured 4/4 calls at the CP1 spike, `docs/model-findings.md` §3).
+   The starter's `_once()` read only `.content`, so **every `GLM-4.7-Flash` call
+   returned the empty string while still being billed.** We fall back to
+   `reasoning`, then `reasoning_content`, only when `content` is blank, and strip
+   `<think>` blocks from whichever field is used. Anyone using the starter
+   `llm.py` with a Flash model is silently getting empty answers.
+2. **`run.py` — the default `--agent`**, so our agent is the one that runs.

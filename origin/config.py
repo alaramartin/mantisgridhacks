@@ -75,3 +75,26 @@ SERVICE_MEMBER_FRAC = 0.4     # ... counting only pods whose raw score is >= thi
 SHARED_CALLEE_BONUS = 2.0     # a callee slowed on calls from >= 2 callers (network suspect)
 
 # --- PERSON 2 ---  (model tiers / budget constants appended below this line)
+
+# tiers confirmed by the CP1 spike (docs/model-findings.md): 4.7-Flash parsed 4/4 at
+# ~90 output tokens and 2.4-3.7 s; 5.3-Flash only 2/4 (it rambles past the JSON), so it
+# is the availability fallback, never the first choice. GLM-5.3 exists on Featherless
+# but is NOT in cost.py's PRICES and would raise KeyError -- never call it.
+CHEAP = ["zai-org/GLM-4.7-Flash", "zai-org/GLM-5.3-Flash"]
+STRONG = ["zai-org/GLM-5.2", "zai-org/GLM-5.1"]     # 5.2: 1.5-17 s, ~45 out tok, 4/4
+CHEAP_MAX_TOKENS = 700          # measured worst case 95 with thinking off; 700 is slack
+STRONG_MAX_TOKENS = 700         # was 4000 for thinking-on; CP1 turned thinking OFF
+CALL_TIMEOUT_S = 25
+CASE_SOFT_DEADLINE_S = 45
+STRONG_MIN_REMAINING_S = 20
+RUN_AVG_LIMIT_S = 50            # above this running average, go engine-only
+GATE_MARGIN = 0.35
+GATE_SUPPORT = 2
+ESCALATE_MARGIN = 0.15
+FACTS_MAX = 40
+CANDIDATES_SHOWN = 8
+# CONFIRMED at CP1, not a placeholder. Pass this as extra_body on EVERY model call.
+# With thinking on, all four models spend the whole output budget narrating and get cut
+# off mid-JSON: 0/4 parsed at a 1200-token cap. With it off: 12/16 parsed, 1.5-4 s.
+# The other documented switch, {"thinking": {"type": "disabled"}}, is silently ignored.
+THINKING_OFF = {"chat_template_kwargs": {"enable_thinking": False}}
