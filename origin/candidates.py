@@ -7,6 +7,7 @@ edge signals' "caller → callee" cmdb_id, so it also runs on cached signals.
 from __future__ import annotations
 
 import math
+import os
 from collections import defaultdict
 
 from origin.config import (CAUSAL_DEMOTE, CAUSAL_EARLIER_S, MAX_CANDIDATES, MULTI_FAILURE_SEP_S,
@@ -68,7 +69,15 @@ def _make(component: str, level: str, sigs: list[Signal], notes: list[str]) -> C
 
 def _demote(c: Candidate, why: str) -> None:
     if c.demoted_by is None:
-        c.score = c.raw_score * CAUSAL_DEMOTE
+        # ORIGIN_NO_CAUSAL=1 records the demotion reason but does not apply the
+        # score penalty, so the ranking is what it would be with no causal filter
+        # at all. That is the `engine-nocausal` ablation: the filter -- demoting a
+        # candidate whose node, or a pod it calls, went wrong earlier -- is the one
+        # mechanism in ORIGIN that the official brief does not hand every team, and
+        # without a before/after number it is only an assertion. P2 added this hook;
+        # it is inert unless the variable is set.
+        if not os.environ.get("ORIGIN_NO_CAUSAL"):
+            c.score = c.raw_score * CAUSAL_DEMOTE
         c.demoted_by = why
 
 

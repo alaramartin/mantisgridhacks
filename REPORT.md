@@ -45,18 +45,81 @@ we found that bug the hard way (a whole dev-tune run came back in 0.6 s with pre
 fixed it. Reported per-case seconds use the **cold** engine time recorded by the agent, not the
 cached read, and the Docker numbers below are from an uncached run.
 
-## Results ⟨P2⟩
+## Results
 
-<!-- P2: eval/results/summary.md tables 1-3. Main holdout table: config · n · mean partial (± std
-     over repeats) · strict k/n · $/case · $/correct · s/case mean/max · tokens in/out. Then the same
-     for dev_tune labelled "tuned on these — optimistic". Then per task type. -->
+<!-- BEGIN SUMMARY -->
 
-_TODO P2 — holdout tables._
+## 1. Holdout (21 cases, never tuned on)
 
-**Engine-only, dev-tune (49 cases), for reference:** partial **0.5747**, strict **21/49 (42.9%)**,
-3.8 s/case mean, **$0.00** — no model calls. By task type (partial): task_1 0.556 · task_2 0.357 ·
-task_3 0.800 · task_4 0.250 · task_5 0.786 · task_6 0.556 · task_7 0.645. The starter heuristic on
-the same split: **0.056 partial, 1/49 strict**.
+| config | runs | mean score | fully solved | easy | middle | hard | $/case | $/correct* | s/case mean/max | tok in/out |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `heuristic` | 1 | 0.111 (n=1) | 1.0/21 | 0.111 | 0.111 | 0.110 | $0.0000 | $0.0000 | 1.9 / 6.3 | 0 / 0 |
+| `engine` | 1 | 0.524 (n=1) | 7.0/21 | 0.667 | 0.444 | 0.333 | $0.0000 | $0.0000 | 7.7 / 25.5 | 0 / 0 |
+
+\* `$/correct` is noisy at n=21 — one case moves it a lot. Quoted for completeness, not for ranking.
+
+## 2. dev_tune (49 cases) — **tuned on these, so optimistic**
+
+| config | runs | mean score | fully solved | easy | middle | hard | $/case | $/correct* | s/case mean/max | tok in/out |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `heuristic` | 1 | 0.056 (n=1) | 1.0/49 | 0.071 | 0.037 | 0.062 | $0.0000 | $0.0000 | 1.7 / 5.4 | 0 / 0 |
+| `engine` | 1 | 0.575 (n=1) | 21.0/49 | 0.548 | 0.575 | 0.645 | $0.0000 | $0.0000 | 7.7 / 36.8 | 0 / 0 |
+| `routed` | 1 | 0.440 (n=1) | 14.0/49 | 0.357 | 0.487 | 0.541 | $0.0059 | $0.0134 | 10.9 / 29.2 | 7,492 / 332 |
+| `routed-reason` | 1 | 0.559 (n=1) | 19.0/49 | 0.524 | 0.562 | 0.645 | $0.0063 | $0.0113 | 13.1 / 30.3 | 7,782 / 444 |
+| `routed-duel` | 1 | 0.524 (n=1) | 19.0/49 | 0.452 | 0.550 | 0.645 | $0.0001 | $0.0002 | 6.0 / 31.2 | 997 / 53 |
+
+## 3. Score by task type (holdout)
+
+| task | `engine` |
+|---|---|
+| task_1 | 0.500 |
+| task_2 | 0.833 |
+| task_3 | 0.667 |
+| task_4 | 0.500 |
+| task_5 | 0.500 |
+| task_6 | 0.333 |
+| task_7 | 0.333 |
+
+## 4. Where the routing went (`routed`, all splits)
+
+| route | cases | share | mean score | $/case | s/case |
+|---|---|---|---|---|---|
+| `strong` | 69 | 47% | 0.435 | $0.0084 | 15.8 |
+| `gate` | 39 | 27% | 0.654 | $0.0000 | 1.3 |
+| `engine_only` | 17 | 12% | 0.745 | $0.0000 | 4.2 |
+| `duel` | 15 | 10% | 0.233 | $0.0002 | 11.6 |
+| `flash` | 6 | 4% | 0.500 | $0.0022 | 9.6 |
+| `fallback` | 1 | 1% | 0.000 | $0.0075 | 25.4 |
+
+## 5. Knowing when it doesn't know (all model configs, per split)
+
+| split | confidence | cases | share | mean score | fully solved | note |
+|---|---|---|---|---|---|---|
+| dev_tune | High | 50 | 26% | 0.740 | 30/50 |  |
+| dev_tune | Medium | 28 | 14% | 0.411 | 8/28 |  |
+| dev_tune | Low | 118 | 60% | 0.460 | 35/118 |  |
+| holdout | High | 4 | 19% | 0.312 | 0/4 | **too small to read** |
+| holdout | Medium | 4 | 19% | 0.250 | 0/4 | **too small to read** |
+| holdout | Low | 13 | 62% | 0.673 | 7/13 |  |
+
+_**The two splits disagree, so we do not claim calibration.** On dev_tune High beats Low (0.740 vs 0.460, n=50); on the holdout it is the worse bucket (0.312 vs 0.673, n=4). Margin, the main input to the rule, correlates with score at only +0.06 on dev_tune and mean score is flat across all four margin quartiles -- so the dev_tune ordering may itself be chance, and we read the label as weakly informative at best._
+
+## 6. Failure taxonomy — the first thing wrong, per missed scoring point
+
+| first thing wrong | `engine` | `routed` | `routed-reason` | `routed-duel` |
+|---|---|---|---|---|
+| component wrong | 18 | 13 | 10 | 10 |
+| reason wrong | 26 | 21 | 18 | 20 |
+| time wrong (> 60 s off) | 20 | 21 | 15 | 14 |
+| **total missed** | 64 | 55 | 43 | 44 |
+
+## 7. Headlines
+
+- **Engine vs the free baseline:** 0.524 vs 0.111, at $0.00 either way.
+
+_Holdout numbers. n=21: a difference of one or two cases is a tie._
+
+<!-- END SUMMARY -->
 
 ## Routed vs single model ⟨P2⟩
 

@@ -1544,6 +1544,66 @@ Print this to your human and stop:
 
 - [ ] **Bounded query tools** for the strong model: after its first reply, allow ≤ 2 requests
       `{"get_series": {"component","kpi"}}` / `{"get_edge": {"caller","callee"}}`, served by
+      Person 1's `origin/query.py` (built for STRETCH #1), each result added to the sheet as a new fact ID; re-ask once. Only on escalated cases, only with ≥ 20 s left.
+- [ ] **STRETCH #3 — PROVE THE CAUSAL FILTER IS WORTH ANYTHING (`engine-nocausal` ablation).**
+      _Not built. Raised at CP3. Read this before deciding it is optional._
+
+      **Background — why this matters more than it looks.** We audited our claimed
+      differentiators against the official docs (everyone reads the same brief). Almost
+      everything we thought was distinctive is prescribed in `docs/scoring.md`: always emit a
+      guess; state calibrated confidence; cheap triage before expensive reasoning; stop early
+      when conclusive; compare routed against single-model; report a failure taxonomy; a
+      defensible negative beats an undefendable positive. `docs/data.md` even hands over the
+      parent/child span gap for network faults. Doing all of that well is **the assignment, not
+      an edge**.
+
+      Two ideas survived that audit, and only one is a mechanism no other team is told to build:
+      **demoting a candidate when something it calls went wrong earlier** — the onset-ordered
+      causal filter in `origin/candidates.py`. Nothing in the official docs suggests using
+      who-broke-first along the call graph to separate cause from consequence. `docs/scoring.md`
+      also hints at why it could be the whole ball game: the published *Oracle* baseline was
+      handed the relevant metrics and **still scored 7%** — "knowing where to look isn't the hard
+      part; reasoning about what you find is."
+
+      **The problem: right now it is an assertion.** `docs/scoring.md` says what moves you up is
+      before-and-after numbers, "not an assertion". So measure it.
+
+      **What to build (cheap, two small pieces):**
+      1. **P1:** wrap the demotion step in `origin/candidates.py` in
+         `if not os.environ.get("ORIGIN_NO_CAUSAL"):`. One line.
+      2. **P2:** add `"engine-nocausal": {"agent": "agents.origin", "env": {"ORIGIN_MODE": "engine",
+         "ORIGIN_NO_CAUSAL": "1"}}` to `CONFIGS` in `eval/run_eval.py`. One line.
+
+      Then run both on dev_tune and report: how many cases the filter changed the top candidate
+      in, and what it did to the mean score. Target sentence for REPORT.md and the talk:
+      _"The causal filter changed the top candidate in N of 49 dev cases and moved the mean from
+      X to Y; of those N, M were cases where the loudest component was a downstream victim."_
+
+      **It is allowed to come back negative** — that is the point, and `docs/scoring.md` pays for
+      a defensible negative. If the filter does nothing, we say so and stop claiming it.
+
+- [ ] **STRETCH #4 — propagation chain in the evidence file** (P2 only, ~20 min, no contract change).
+      Make the graph reasoning visible to a human reading one case, ordered by onset:
+
+      ```
+      ## How the failure spread
+        09:09:00  shippingservice-1   <- ROOT: nothing it depends on broke earlier
+           |  calls
+        09:09:30  checkoutservice-2      victim, 30s later  (F6: call gap 14ms -> 910ms)
+           |  calls
+        09:10:30  frontend-0             victim, 90s later  (F9: call gap 31ms -> 1240ms)
+      ```
+
+      Buildable from what `Analysis` already carries: `edge_gap` signals have
+      `cmdb_id == "caller -> callee"`, and each candidate has an onset. **No change to §2 needed**
+      — do NOT add a structured `demoted_by_cid` field mid-event just for this. Degrades to
+      omitting the section when there are no edge signals.
+
+      **Deliberately NOT a graph visualisation.** `docs/scoring.md`: "There's no interface
+      dimension. Your agent runs headless and writes files; nobody watches it work. (Track 2 is
+      the visualization track.)" A renderer earns zero. Text in the evidence file earns evidence
+      marks, which are worth more than accuracy.
+
       Person 1's `origin/query.py` (stretch, ask first), each result added to the sheet as a new fact ID; re-ask once. Only on escalated cases, only with ≥ 20 s left.
 - [ ] Thinking on vs off ablation for GLM-5.2 on the holdout (one extra config).
 - [ ] Cheaper strong tier (GLM-4.7 vs GLM-5.2) as an extra row.
@@ -1569,6 +1629,123 @@ Only after both people confirm. Either person can run it.
       "ORIGIN"; description says **"Track 1 — Root Cause Analysis"**; repo link; presentation link
       (upload the recording, e.g. unlisted YouTube or Drive with view access); English.
 - [ ] After 3:00: bug fixes and deploy repairs only.
+
+---
+
+---
+
+# P2 → P1: WHY THE GLMs ARE NOT HELPING (CP4 findings, read before Phase 5)
+
+Written by Person 2 at CP4 so Person 1 can attack the same problem. Everything
+below is measured on **dev_tune, 49 cases, against your tuned engine** (0.5747).
+Nothing here is from the holdout.
+
+## The scoreboard
+
+| config | what the model is allowed to do | score | solved | $/case |
+|---|---|---|---|---|
+| `engine` | nothing — no model call | **0.5747** | 21 | $0 |
+| `routed-reason` | pick the reason; component pinned to the engine's | 0.5594 | 19 | $0.0063 |
+| `routed-duel` | pick between the top 2, only when margin < 0.25 | 0.5237 | 19 | **$0.000086** |
+| `routed` | pick freely from 8 candidates | 0.4404 | 14 | $0.0059 |
+| `heuristic` | starter baseline | 0.0561 | 1 | $0 |
+
+**Four configurations, every one below engine-only.** The more we constrain the
+model, the closer it gets — but it has never once gone above.
+
+## The decisive number
+
+On the 15 cases `routed-duel` actually consulted a model (the genuinely ambiguous
+ones, margin < 0.25):
+
+> **0 better · 3 worse · 12 unchanged.** Engine would have scored 6.00 on those
+> 15; with the model, 3.50.
+
+All three losses were cases the engine had right or half-right:
+- **row 5** — engine reason `container network packet corruption` was CORRECT; the
+  model changed it to `container CPU load`. 1.00 → 0.00.
+- **row 29** — engine reason `container network latency` was CORRECT; model changed
+  it to `container CPU load`. 0.50 → 0.00.
+- **row 53** — engine component `frontend` was CORRECT; model switched to `node-5`.
+  1.00 → 0.00.
+
+**The model has not once found something the engine missed.** Its entire measured
+effect is to damage cases we already had.
+
+## Three diagnosed causes (all ours, not the model's)
+
+1. **We asked it to redo the causal filter.** The default prompt says "the loudest
+   component is often a victim, prefer the one whose dependencies were normal" —
+   that is your causal filter, which has ALREADY been applied to the ranking we
+   hand it. So it demotes a second time and walks past the right answer. 4 of the
+   6 losses in the original `routed` were the model moving off a correct NODE onto
+   a pod, twice landing on `container network latency`. Fixed in `routed-reason`
+   and `routed-duel`; it is what took 0.4404 → 0.5594.
+
+2. **Anchoring vs. starvation, and we have hit both walls.** With the
+   `engine reason:` line in the prompt, the model agreed with the engine on **48 of
+   49** cases — an expensive rubber stamp. With it removed (duel mode), it lost the
+   engine's metric→reason translation and fell back to a prior: **5 of 15 duels
+   ended on a CPU reason**, including the two losses above. The raw KPI names are
+   still in the facts, so the information is technically present — the model just
+   cannot do the mapping your `REASON_RULES` table does.
+
+3. **It does not know the node/pod rule.** A node's metrics include its pods' load,
+   so when a pod fails its node moves at the same instant. Your engine has the
+   explicit rule (one anomalous pod on a node → the node is that pod's symptom).
+   The model is never told it, sees a tie, and picks the bigger numbers. That is
+   row 53, and rows 2/32/49.
+
+## Where the headroom actually is (this is the useful part)
+
+Measured on dev_tune, for the true component:
+
+| | share |
+|---|---|
+| engine ranks it #1 | **58%** |
+| in the engine's list but ranked lower | **36%** |
+| not a candidate at all | 6% |
+
+**Recall is 94%; ordering is the weakness.** Top-3 contains the truth 81% of the
+time against 58% at top-1, so there are ~23 points available purely from
+re-ordering — no new detection needed. That is the prize, and no model
+configuration has claimed any of it yet.
+
+The engine half-knows when it is shaky: median margin **0.254 when its top pick is
+right**, **0.146 when wrong**. Weak but real, and it is what `routed-duel` gates on.
+
+## Two fixes designed but NOT yet run
+
+Both target diagnosed losses, one line each:
+1. **Duel on the component only** — take the reason from the engine for whichever
+   candidate wins. Recovers rows 5 and 29.
+2. **Put the node/pod rule in the duel prompt** — "a node's metrics include its
+   pods' load; prefer the pod unless several pods on that node went wrong
+   together." Recovers row 53.
+
+Expected ceiling: **stops the harm**, reaching ~engine parity at $0.000086/case.
+Nothing in the evidence suggests it goes above engine-only.
+
+## What P1 could try that P2 has not
+
+- **Make the margin more predictive.** 0.254 vs 0.146 is thin. If the engine
+  emitted a better "am I unsure?" signal, the gate would send the model only the
+  cases it can actually help with, instead of ~half cases we already had right.
+- **The 36% band.** What distinguishes a case where the truth is at rank 2 from one
+  where it is at rank 1? If that is learnable in the engine, it is worth more than
+  any model call — it is the same 23 points, for free.
+- **`container process termination`** is invisible in this bundle (your
+  `docs/data-notes.md`), and is 2 of the reasons we miss.
+
+## Honest framing for REPORT.md and the talk
+
+This is a **defensible negative result**, which `docs/scoring.md` explicitly values
+above an undefendable positive: *"If the top model is no better than the cheapest,
+say so and show it."* We built the routing the brief asks for, measured it four
+ways, diagnosed why it fails, and can show the per-case evidence. The cost story is
+genuinely strong — `routed-duel` is **73x cheaper** than `routed` for a better score
+— and the architecture (engine decides, model constrained to a two-way choice it
+cannot corrupt) is the right shape even though the model does not yet earn its place.
 
 ---
 

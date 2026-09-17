@@ -27,7 +27,8 @@ import re
 import time
 
 from origin.config import (
-    CALL_TIMEOUT_S, CANDIDATES_SHOWN, CHEAP, CHEAP_MAX_TOKENS, ESCALATE_MARGIN,
+    CALL_TIMEOUT_S, CANDIDATES_SHOWN, CHEAP, CHEAP_MAX_TOKENS,
+    DUEL_CANDIDATES, DUEL_MARGIN, ESCALATE_MARGIN,
     FACTS_MAX, GATE_MARGIN, GATE_SUPPORT, STRONG, STRONG_MAX_TOKENS,
     STRONG_MIN_REMAINING_S, THINKING_OFF,
 )
@@ -45,6 +46,32 @@ Reply with JSON only, no prose:
 
 SECOND_OPINION = ("\nA fast model picked: {picks}. The engine's top candidate is C1. "
                   "Decide independently.")
+
+# Reason-only mode. Two measurements drove this, both on the holdout:
+#
+#   * The models match the engine on REASON (55.6% vs 55.6%) and lose on COMPONENT
+#     (44-48% vs 55.6%). The time deficit (33% vs 53%) is downstream of the
+#     component, because the timestamp comes from the chosen component's signals.
+#   * Looking at the 8 cases where the model changed the answer, 4 of the 6 losses
+#     were the model moving off a correct NODE onto a pod, twice landing on
+#     "container network latency". The default PROMPT is why: it tells the model
+#     the loudest component is often a victim and to prefer one whose dependencies
+#     were normal -- which is the causal filter the engine has ALREADY applied. So
+#     the model demotes a second time and walks past the right answer.
+#
+# This prompt therefore says nothing about victims, upstream causes or call graphs.
+# The component is settled; the job is to label it. Choosing the best-fitting label
+# from a fixed list, given a handful of measurements, is what the engine does with a
+# keyword regex and what a model should genuinely be better at.
+REASON_PROMPT = """A causal analysis has already determined the root cause component(s): {fixed}.
+That decision is final. Do not choose a different component and do not reason about
+which component is at fault.
+Your only job: for each one, choose the single reason from the legal list above that
+best matches ITS OWN measurements in the FACTS section.
+Reply with JSON only, no prose:
+{{"answers": [{{"candidate": "C<number>", "reason": "<one legal reason for that component's level>", "fact_ids": ["F<number>", ...]}}],
+ "confidence": "low" | "medium" | "high",
+ "why": "at most 2 sentences naming the facts you used; do not write any number that is not in the facts"}}"""
 
 
 # --- the fact sheet -----------------------------------------------------------
@@ -125,6 +152,63 @@ def fact_sheet(a: Analysis) -> str:
     return "\n".join(lines)
 
 
+DUEL_PROMPT = """Two components are in contention for the same failure. A causal analysis
+ranked {a_cid} first and {b_cid} second, but by a thin margin, so the ordering is not settled.
+
+Decide which ONE is the root cause, and give its reason.
+
+Use the ordering of the evidence: the root cause's own measurements go wrong BEFORE the
+component that depends on it. A component that only went wrong later, or only on calls it
+makes to the other one, is a symptom.
+
+Reply with JSON only, no prose:
+{{"answers": [{{"candidate": "{a_cid}" or "{b_cid}", "reason": "<one legal reason for that component's level>", "fact_ids": ["F<number>", ...]}}],
+ "confidence": "low" | "medium" | "high",
+ "why": "at most 2 sentences naming the facts and the times you used"}}"""
+
+
+def duel_sheet(a: Analysis) -> str:
+    """The top two candidates only, with their facts and no engine verdict.
+
+    Two deliberate differences from `fact_sheet`:
+
+      * **Two candidates, not eight.** The engine's top-1 is right 58% of the time
+        and its top-3 contains the truth 81% of the time, so the addressable band
+        is tiny and adjacent. Showing eight gives a model seven ways to be wrong
+        about a question that is really a coin-flip between two.
+      * **No "engine reason:" line.** With it, the model agreed with the engine on
+        48 of 49 cases -- it was reading our answer back to us. If we want its
+        judgement we have to stop showing it ours.
+    """
+    top = a.candidates[:DUEL_CANDIDATES]
+    lines = [
+        f"CASE: {a.case.n_failures} failure(s) between {fmt_ts(a.case.lo_ts)} and "
+        f"{fmt_ts(a.case.hi_ts)} (UTC+8). The answer needs: {_asked(a)}.",
+        "LEGAL REASONS",
+        "  For node components (names like node-N): " + "; ".join(NODE_REASONS),
+        "  For pods and services: " + "; ".join(POD_REASONS),
+        "THE TWO CANDIDATES",
+    ]
+    for c in top:
+        node = _node_of(a, c)
+        where = f"{c.level}, on {node}" if node else c.level
+        started = fmt_ts(c.onset_ts) if c.onset_ts else "no sustained onset"
+        line = f"{c.cid} {c.component} ({where}); first went wrong {started}"
+        if c.demoted_by:
+            line += f"; note: {c.demoted_by}"
+        lines.append(line)
+    for c in top:
+        lines.append(f"FACTS FOR {c.cid} {c.component}")
+        for sid in c.signal_ids[:FACTS_MAX // 2]:
+            sig = a.signals.get(sid)
+            if sig is not None:
+                lines.append(_render_fact(sig))
+    if a.notes:
+        lines.append("NOTES")
+        lines += [f"- {n}" for n in a.notes]
+    return "\n".join(lines)
+
+
 # --- parsing a reply ----------------------------------------------------------
 
 def parse_reply(text: str, a: Analysis) -> tuple[list[dict] | None, str | None, str | None, str | None]:
@@ -183,9 +267,45 @@ def _models_for(tier: list[str]) -> list[str]:
     return [os.environ["RCA_MODEL"]] if os.environ.get("RCA_MODEL") else list(tier)
 
 
+def pinned_cids(a: Analysis) -> list[str]:
+    """The engine's chosen candidate per answer slot, in its own order.
+
+    `engine_answers` is the engine's final pick list and carries the cid it came
+    from; the ranking is the fallback when it does not.
+    """
+    cids = [x.get("cid") for x in (a.engine_answers or []) if x.get("cid")]
+    if len(cids) < a.case.n_failures:
+        for c in a.candidates:
+            if c.cid not in cids:
+                cids.append(c.cid)
+            if len(cids) >= a.case.n_failures:
+                break
+    return cids[:max(1, a.case.n_failures)]
+
+
+def _reason_only_prompt(a: Analysis) -> str | None:
+    if not os.environ.get("ORIGIN_REASON_ONLY") or not a.candidates:
+        return None
+    known = {c.cid: c for c in a.candidates}
+    fixed = ", ".join(f"{cid} {known[cid].component}"
+                      for cid in pinned_cids(a) if cid in known)
+    return REASON_PROMPT.format(fixed=fixed) if fixed else None
+
+
+def known_component(a: Analysis, cid: str) -> str:
+    for c in a.candidates:
+        if c.cid == cid:
+            return c.component
+    return cid
+
+
 def _call(llm, models, sheet: str, suffix: str, a: Analysis, max_tokens: int,
-          thinking_off: bool) -> tuple[str, float]:
-    prompt = sheet + "\n\n" + PROMPT.format(n=a.case.n_failures) + suffix
+          thinking_off: bool, body: str | None = None) -> tuple[str, float]:
+    # In reason-only mode the default PROMPT is replaced outright, not appended to:
+    # leaving its "prefer the component whose dependencies were normal" line in
+    # place is what made the model re-run the engine's causal filter.
+    body = body or _reason_only_prompt(a) or PROMPT.format(n=a.case.n_failures)
+    prompt = sheet + "\n\n" + body + suffix
     kwargs = {"max_tokens": max_tokens, "temperature": 0, "timeout": CALL_TIMEOUT_S}
     if thinking_off:
         kwargs["extra_body"] = THINKING_OFF
@@ -234,6 +354,52 @@ def route(a: Analysis, llm, mode: str, deadline: float) -> dict:
             d["errors"].append(f"single: {type(e).__name__}: {e}")
         return d
 
+    # --- duel: one cheap call, two candidates, only when the engine is shaky ---
+    if os.environ.get("ORIGIN_DUEL"):
+        # Multi-failure cases do not duel: a duel is a two-way choice for ONE
+        # answer, and there is no version of it that picks n distinct culprits.
+        # They must NOT fall through to the escalation path below -- that is the
+        # unrestricted routing this mode exists to replace, and the two
+        # multi-failure cases we diagnosed by hand (dev_tune rows 48 and 51) were
+        # both ones the model broke. So they take the engine's answer.
+        if n > 1:
+            d["notes"].append(f"{n} failures: duel mode answers from the engine "
+                              "(a duel decides between two candidates for one answer)")
+            return d
+        if len(a.candidates) < 2:
+            d["notes"].append("only one candidate: nothing to duel against")
+            return d
+        if a.margin >= DUEL_MARGIN:
+            d["route"] = "gate"
+            d["notes"].append(f"gated: margin {a.margin:.2f} >= {DUEL_MARGIN}, the "
+                              "engine's ordering is clear enough to stand")
+            return d
+        c1, c2 = a.candidates[0], a.candidates[1]
+        d["sheet"] = sheet = duel_sheet(a)
+        try:
+            text, secs = _call(llm, CHEAP, sheet, "", a, CHEAP_MAX_TOKENS,
+                               thinking_off=True,
+                               body=DUEL_PROMPT.format(a_cid=c1.cid, b_cid=c2.cid))
+            d["seconds"]["flash"] = secs
+            picks, conf, why, err = parse_reply(text, a)
+            d["flash"] = {"models": list(CHEAP), "seconds": secs, "error": err}
+            if picks and picks[0]["cid"] in (c1.cid, c2.cid):
+                d.update(route="duel", picks=picks, confidence_model=conf, why=why,
+                         flash_pick=_pick_pairs(picks, a))
+                d["notes"].append(
+                    f"duel at margin {a.margin:.2f}: {c1.component} vs {c2.component} "
+                    f"-> {'kept' if picks[0]['cid'] == c1.cid else 'switched to'} "
+                    f"{known_component(a, picks[0]['cid'])}")
+            else:
+                d["errors"].append(f"duel: {err or 'picked outside the two candidates'}")
+                d["route"] = "engine_only"
+        except Exception as e:
+            d["flash"] = {"models": list(CHEAP), "seconds": 0.0,
+                          "error": f"{type(e).__name__}: {e}"}
+            d["errors"].append(f"duel: {type(e).__name__}: {e}")
+            d["route"] = "engine_only"
+        return d
+
     # --- gate: the engine is clear enough that a model cannot help ------------
     top = a.candidates[0]
     if a.margin >= GATE_MARGIN and top.support >= GATE_SUPPORT and n == 1:
@@ -271,10 +437,26 @@ def route(a: Analysis, llm, mode: str, deadline: float) -> dict:
         why_escalate.append(f"margin {a.margin:.2f} below {ESCALATE_MARGIN}")
     if n >= 2:
         why_escalate.append(f"{n} failures to separate")
-    if all(a.case.asks.get(k) for k in ("datetime", "component", "reason")):
+    # "The question asks for all three fields" was meant to catch hard cases, but
+    # nearly every task asks all three, so on the holdout it sent 86% of cases to
+    # GLM-5.2 on its own -- the gate barely fired and `routed` collapsed into
+    # `single-strong`. ORIGIN_NO_ASK3=1 drops the trigger so escalation is decided
+    # by ambiguity alone; measured as the `routed-tight` config.
+    if (all(a.case.asks.get(k) for k in ("datetime", "component", "reason"))
+            and not os.environ.get("ORIGIN_NO_ASK3")):
         why_escalate.append("all three fields asked")
 
     if not why_escalate:
+        if flash_picks is None:
+            d["route"] = "fallback"
+        return d
+
+    if os.environ.get("ORIGIN_NO_STRONG"):
+        # Measured on dev_tune: the strong tier is the whole of the accuracy loss
+        # (30 escalated cases, engine 0.447 -> 0.325), while Flash never changed an
+        # answer either way. ORIGIN_NO_STRONG=1 keeps the gate and the cheap tier
+        # and stops there; measured as the `routed-flash` config.
+        d["notes"].append("escalation disabled (ORIGIN_NO_STRONG)")
         if flash_picks is None:
             d["route"] = "fallback"
         return d
