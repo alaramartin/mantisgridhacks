@@ -58,7 +58,7 @@ Three ideas, each measurable:
 2. **Evidence is rendered from data, not written by a model.** Every fact carries its file, `cmdb_id`, KPI and epoch timestamp. Any number in model prose that isn't in the fact sheet removes that prose. This is our direct answer to "evidence that isn't in the data scores zero".
 3. **Escalation routing with a confidence gate.** When the engine's margin is large, no model is called. Otherwise a cheap Flash model decides first, and GLM-5.2 is called only on disagreement, low margin, multiple failures, or a hard task. We report what the gate and each tier buy in accuracy, dollars and seconds.
 
-**"It won't fit in context. Query it." (brief + slide).** The engine *is* the query layer. It reads only the window, from files far larger than memory. The model never receives raw telemetry, only a fact sheet of ≤ 40 facts (~4–6K tokens) against a "typical case" of 474K input tokens in `docs/models.md`. That token gap is a headline number for the eval. Letting the strong model ask for more data through bounded query tools (`get_series`, `get_edge`, each result registered as a new fact ID so it stays grounded) is **STRETCH #1**, the first thing built after Checkpoint 4.
+**"It won't fit in context. Query it." (brief + slide).** The engine *is* the query layer. It reads only the window, from files far larger than memory. The model never receives raw telemetry, only a fact sheet of ≤ 40 facts (~4–6K tokens) against a "typical case" of 474K input tokens in `docs/models.md`. That token gap is a headline number for the eval. Letting the strong model ask for more data through bounded query tools (`get_series`, `get_edge`, each result registered as a new fact ID so it stays grounded) is **STRETCH #2**. It reuses the query backend that STRETCH #1 (our MCP server) builds first.
 
 **Precedent to cite.** A 2026 trajectory study of 3,500 RCA agent runs proposed DiagGuard: survey the evidence before localizing, audit the diagnosis against it afterward. It raised top-1 from 43.5% to 52.5% held-out. ORIGIN's engine-first survey and deterministic validator are the same idea.
 
@@ -109,7 +109,8 @@ Build only after Checkpoint 4 passes (see PLAN).
 
 | Stretch | Note |
 | --- | --- |
-| **#1 Bounded query tools for the strong model** (`get_series(component, kpi)`, `get_edge(caller, callee)`, ≤ 2 calls, results become new fact IDs) | Makes "the model queries the telemetry" literal; only on escalated cases; watch the 45 s deadline |
+| **#1 ORIGIN MCP server** (`mcp_server.py`, FastMCP over stdio): tools `list_cases`, `analyze_case`, `get_candidates`, `get_evidence`, `get_series`, `get_edge`, so an SRE can ask Claude Desktop / Claude Code "what broke between 09:00 and 09:30?" and get the same grounded facts | Answers slide item 02 with our own MCP (MantisGrid's MCP is Track 2's GPU-cost API). ~45–60 min. **Outside the judged path:** not in the Dockerfile or `requirements.txt`, run with `uv run --with fastmcp`. One 20–30 s presentation beat |
+| **#2 Bounded query tools for the strong model** (`get_series(component, kpi)`, `get_edge(caller, callee)`, ≤ 2 calls, results become new fact IDs) | Makes "the model queries the telemetry" literal; only on escalated cases; watch the 45 s deadline |
 | Fix test: ridge counterfactual on metric KPIs as an extra **"Verifier check (simulated)"** line in Ruled out, clearly labelled | Only on pods with enough baseline; never in `## Evidence` |
 | Log template mining (error burst per pod) as a signal | Cheap signal for process termination |
 | `metric_mesh` edge metrics as a second network signal | Watch the quoted kpi_name with commas |
@@ -127,7 +128,7 @@ Build only after Checkpoint 4 passes (see PLAN).
 
 **Slide (What are we looking for):** 01 solves a real problem · 02 use MantisGrid AI MCP to build chat/agentic experiences · 03 makes intelligent decisions · 04 automates something humans struggle to do at scale · 05 produces a measurable outcome · 06 can be demonstrated today. **Golden rule: Working > Perfect.** Ship real functionality · demo with conviction.
 
-- **MCP (item 02):** the Track 1 container has no route out except the model endpoint, and Track 1's judging focus doesn't mention MCP (Track 2's does). **We don't use MCP.** If asked: the judged sandbox forbids other endpoints.
+- **MCP (item 02):** MantisGrid's MCP (`track-2/mcp_layer/` in the official repo) serves Track 2's GPU-cost API, not our telemetry. The Track 1 container can only reach the model endpoint, and "use of MantisGrid AI/MCP" is a Track 2 judging focus (Agreement §8). So **the judged agent uses no MCP**. Instead **STRETCH #1** wraps ORIGIN's engine in **our own MCP server**, a chat/agentic experience for an on-call engineer, kept outside the Docker path. **Ask an organizer at CP1** whether Track 1 expects MCP; if they say it's required, it moves up to right after Checkpoint 3.
 - **"Makes intelligent decisions"** → the routing gate and the causal filter, each shown with numbers.
 - **"Automates something humans struggle at scale"** → 12 GB, 40 pods, 9 M spans a day; an SRE can't read that at 3am.
 - **"Measurable outcome"** → the eval table.
@@ -312,6 +313,7 @@ Reported per config on **holdout (21)** and **dev-tune (49)**, never mixed: mean
 | 1:20–2:20 | **Open the evidence file**: answer, confidence, facts; `grep` one fact's timestamp and KPI in the raw CSV on screen; read "Ruled out" | MUST, never cut |
 | 2:20–3:30 | **Eval:** routed vs single-flash vs single-strong vs engine vs heuristic: accuracy, $/case, s/case, variance; routing breakdown; one honest negative result | MUST |
 | 3:30–4:00 | Failure taxonomy + calibration in one sentence; what we'd do next | nice |
+| (inside 3:30–4:00, only if STRETCH #1 shipped) | ~20 s: the same engine as an MCP tool — ask Claude "what broke between 09:00 and 09:30?" and show it calling `analyze_case` / `get_evidence` | STRETCH, cut first |
 
 Record it (QuickTime / Cmd+Shift+5) as a backup even if presented live. Never show a fallback run as the agent deciding.
 
@@ -359,7 +361,7 @@ P2 builds the router against a **stub Analysis fixture** from 10:30, so only rea
 
 ## Cut order
 
-**Already out:** Streamlit app, video graph animation, Claude API, ridge fix test (stretch), MCP, `log_proxy`, peer z, PageRank, change-event vertices, open-ended multi-turn tool loops (the bounded query tools are STRETCH #1).
+**Already out:** Streamlit app, video graph animation, Claude API, ridge fix test (stretch), MantisGrid's Track 2 MCP, MCP inside the judged container (our own MCP server is STRETCH #1), `log_proxy`, peer z, PageRank, change-event vertices, open-ended multi-turn tool loops (the bounded query tools are STRETCH #2).
 
 **Never cut:** valid submission · window loader with UTC+8 / ms fix · engine candidates · grounded evidence · routed vs single-model eval · presentation.
 
@@ -415,7 +417,7 @@ P2 builds the router against a **stub Analysis fixture** from 10:30, so only rea
 
 **Ship (must):** valid Docker submission running 20 cases in < 20 min at 2 CPU / 8 GB · grounded evidence for every case · engine + routed decision · eval with routed vs single model on a holdout, $/case, s/case, variance · REPORT.md · ~4-min presentation with a live case.
 
-**Stretch:** fix-test verifier line, mesh / log signals, thinking ablation, multi-turn loop.
+**Stretch:** our own MCP server over the engine (#1), bounded query tools for the strong model (#2), fix-test verifier line, mesh / log signals, thinking ablation.
 
 **Win path.** Technical Execution through correct loading on a hard dataset, a verifiable engine and a rigorous eval. Innovation through evidence that can't lie and escalation routing that measurably saves dollars and seconds. Impact through an on-call engineer checking our claims in seconds, with honest confidence. Presentation through a live run, a grep that proves a number, and a table with a negative result in it.
 
