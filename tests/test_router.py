@@ -210,3 +210,64 @@ def test_single_mode_makes_exactly_one_call_and_never_gates(monkeypatch):
     assert d["route"] == "flash" and len(llm.calls) == 1
     assert llm.calls[0]["models"] == ["zai-org/GLM-5.2"]
     assert llm.calls[0]["kw"]["max_tokens"] == 700
+
+
+# --- duel mode ------------------------------------------------------------------
+
+def test_duel_gates_when_the_margin_is_wide(monkeypatch):
+    monkeypatch.setenv("ORIGIN_DUEL", "1")
+    llm = FakeLLM()
+    d = router.route(make_clear_analysis(), llm, "routed", FAR)   # margin 0.60
+    assert d["route"] == "gate" and llm.calls == []
+
+
+def test_duel_makes_exactly_one_call_on_a_thin_margin(monkeypatch):
+    monkeypatch.setenv("ORIGIN_DUEL", "1")
+    a = make_analysis(); a.margin = 0.10
+    llm = FakeLLM(reply(cid="C2", reason="node disk read I/O consumption"))
+    d = router.route(a, llm, "routed", FAR)
+    assert d["route"] == "duel" and len(llm.calls) == 1
+    assert d["picks"][0]["cid"] == "C2"
+
+
+def test_duel_shows_two_candidates_and_hides_the_engines_verdict(monkeypatch):
+    monkeypatch.setenv("ORIGIN_DUEL", "1")
+    a = make_analysis(); a.margin = 0.10
+    llm = FakeLLM(reply())
+    router.route(a, llm, "routed", FAR)
+    prompt = llm.calls[0]["prompt"]
+    assert "engine reason" not in prompt      # anchoring is the whole point
+    assert "C3" not in prompt.split("FACTS FOR")[0]
+    assert "THE TWO CANDIDATES" in prompt
+
+
+def test_duel_rejects_a_pick_outside_the_two(monkeypatch):
+    monkeypatch.setenv("ORIGIN_DUEL", "1")
+    a = make_analysis(); a.margin = 0.10
+    llm = FakeLLM(reply(cid="C4", reason="container network latency"))
+    d = router.route(a, llm, "routed", FAR)
+    assert d["route"] == "engine_only"
+    assert any("outside the two" in e for e in d["errors"])
+
+
+def test_duel_never_escalates_on_multi_failure_cases(monkeypatch):
+    """The first cut only engaged duel mode when n == 1, so two-failure cases
+    fell through to the unrestricted escalation path this mode exists to
+    replace -- a third of dev_tune ran the wrong agent. They now answer from
+    the engine instead."""
+    monkeypatch.setenv("ORIGIN_DUEL", "1")
+    a = make_analysis(n_failures=2); a.margin = 0.01      # thin: would have escalated
+    llm = FakeLLM()                                       # no scripted replies at all
+    d = router.route(a, llm, "routed", FAR)
+    assert llm.calls == [], "a multi-failure case must not call a model in duel mode"
+    assert d["route"] == "engine_only"
+    assert any("duel mode answers from the engine" in n for n in d["notes"])
+
+
+def test_duel_with_a_single_candidate_does_not_call(monkeypatch):
+    monkeypatch.setenv("ORIGIN_DUEL", "1")
+    a = make_analysis(); a.margin = 0.01
+    a.candidates = a.candidates[:1]
+    llm = FakeLLM()
+    d = router.route(a, llm, "routed", FAR)
+    assert llm.calls == [] and d["route"] == "engine_only"

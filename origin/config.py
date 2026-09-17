@@ -116,3 +116,13 @@ CANDIDATES_SHOWN = 8
 # off mid-JSON: 0/4 parsed at a 1200-token cap. With it off: 12/16 parsed, 1.5-4 s.
 # The other documented switch, {"thinking": {"type": "disabled"}}, is silently ignored.
 THINKING_OFF = {"chat_template_kwargs": {"enable_thinking": False}}
+
+# --- duel mode (P2, CP4) ------------------------------------------------------
+# Measured on dev_tune with the tuned engine: the true component is the engine's
+# rank 1 in 58% of cases, inside its top 3 in 81%, and absent only 6% of the time.
+# So the engine's weakness is ORDERING, not recall -- and the whole addressable
+# band sits in the top few. The engine also half-knows when it is shaky: median
+# margin 0.254 when its top pick is right, 0.146 when it is wrong. Duel mode
+# therefore calls a model only below this threshold, and shows it just the top two.
+DUEL_MARGIN = 0.25
+DUEL_CANDIDATES = 2

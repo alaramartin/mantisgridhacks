@@ -157,3 +157,36 @@ def test_confidence_why_is_set_for_the_evidence_file():
     d = decision(route="gate")
     validate(a, d)
     assert d["confidence_why"] and d["confidence_why"][0].islower()
+
+
+def test_reason_only_mode_keeps_the_engines_component(monkeypatch):
+    """Measured on the holdout: models match the engine on reason (55.6%) and
+    lose on component (44-48% vs 55.6%); the time collapse is downstream of the
+    component. So take the model's reason and keep the engine's component."""
+    monkeypatch.setenv("ORIGIN_REASON_ONLY", "1")
+    a = make_analysis()
+    answers, _, notes = validate(a, decision(picks=[
+        {"cid": "C3", "reason": "container network latency", "fact_ids": []}]))
+    assert answers[0]["component"] == "shippingservice-1"   # engine's C1, not C3
+    assert answers[0]["reason"] == "container network latency"   # model's choice
+    assert any("reason-only mode" in n for n in notes)
+
+
+def test_reason_only_mode_is_off_by_default():
+    a = make_analysis()
+    answers, _, _ = validate(a, decision(picks=[
+        {"cid": "C3", "reason": "container network latency", "fact_ids": []}]))
+    assert answers[0]["component"] == "checkoutservice-2"
+
+
+def test_reason_only_pins_every_answer_not_just_the_first(monkeypatch):
+    """Two of the six holdout losses were multi-failure cases where the model
+    kept answer 1 and wrecked answer 2, so pinning only the top would miss them."""
+    monkeypatch.setenv("ORIGIN_REASON_ONLY", "1")
+    a = make_analysis(n_failures=2)
+    engine_components = [x["component"] for x in a.engine_answers]
+    answers, _, notes = validate(a, decision(picks=[
+        {"cid": "C3", "reason": "container network latency", "fact_ids": []},
+        {"cid": "C4", "reason": "container network latency", "fact_ids": []}]))
+    assert [x["component"] for x in answers] == engine_components
+    assert sum("reason-only mode" in n for n in notes) == 2

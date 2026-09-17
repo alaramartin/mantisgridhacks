@@ -136,15 +136,24 @@ What that means honestly, module by module (details in `docs/ai-use.md`):
   per-method sources in [`docs/engine-provenance.md`](docs/engine-provenance.md).
 
 Every AI-generated line was read by a human before commit. The team is responsible for all of it.
+## Attribution, and the one starter file we changed
 
-## Attribution
+Starter files (`run.py`, `score.py`, `cost.py`, `llm.py`, `agents/heuristic.py`,
+`agents/routed.py`, `Dockerfile`, `Makefile`) are MantisGrid's — see
+[`LICENSE-MANTISGRID`](LICENSE-MANTISGRID). `score.py` vendors OpenRCA's own
+evaluator **unchanged**. Telemetry is OpenRCA-derived, CC BY-NC 4.0, and is **not
+included** in this repository — see [`ATTRIBUTION.md`](ATTRIBUTION.md).
 
-- **Starter code** — `run.py`, `llm.py`, `cost.py`, `score.py`, `Dockerfile`, `Makefile`,
-  `scripts/validate_submission.py`, `agents/heuristic.py`, `agents/routed.py` are MantisGrid's
-  hackathon starter, used under [`LICENSE-MANTISGRID`](LICENSE-MANTISGRID). One starter file was
-  patched: `llm.py` reads the answer from `message.reasoning` as well as `message.content`, because
-  the GLM Flash models return it there (see `docs/model-findings.md`).
-- **`score.py`** vendors OpenRCA's own evaluator, unchanged (MIT).
-- **Data** — OpenRCA `Market-cloudbed-1`, CC BY-NC 4.0, **not included** in this repository. See
-  [`ATTRIBUTION.md`](ATTRIBUTION.md) and `docs/GET_DATA.md`.
-- Everything else was written by the team today.
+Two edits to the starter, both disclosed:
+
+1. **`run.py`** — its default `--agent` is now `agents.origin`. The command line
+   is otherwise untouched.
+2. **`llm.py`** — `_once()` now falls back to `message.reasoning` when
+   `message.content` is blank. Featherless returns the answer there on **both
+   Flash models** (measured 4/4 calls, [`docs/model-findings.md`](docs/model-findings.md) §3),
+   so the unpatched client returns `""` on **every `GLM-4.7-Flash` call while
+   still being billed**. The patch sits after the token accounting and changes
+   only which field the text is read from — counts, prices, retries and the
+   circuit breaker are byte-identical, so it cannot flatter our cost numbers.
+   Anyone using the starter `llm.py` with a Flash model is silently getting empty
+   answers.

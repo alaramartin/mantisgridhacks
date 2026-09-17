@@ -207,8 +207,17 @@ def write_trace(out_dir, instruction: str, a, decision: dict, answers: list[dict
             "final": [[x.get("datetime"), x.get("component"), x.get("reason")]
                       for x in answers],
             "confidence": confidence,
+            # the model's own claim, recorded and never acted on -- so it can be
+            # checked against outcomes afterwards instead of taken on trust
+            "confidence_model": decision.get("confidence_model"),
+            "support": (a.candidates[0].support if a is not None and a.candidates else None),
+            "n_candidates": (len(a.candidates) if a is not None else None),
             "grounding_dropped": bool(decision.get("grounding_dropped", False)),
-            "errors": errors,
+            # Both levels: `errors` is what escaped solve(), decision["errors"] is
+            # what each model stage recorded. Tracing only the first made a failed
+            # model call look clean -- P1 hit exactly that at CP3, where an openai
+            # 3.x TypeError produced route="fallback" with an empty errors list.
+            "errors": list(errors) + list((decision or {}).get("errors", [])),
             "seconds": seconds,
         }
         with (Path(out_dir) / "origin_trace.jsonl").open("a") as fh:

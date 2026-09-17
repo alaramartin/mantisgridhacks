@@ -1,3 +1,10 @@
-pandas>=2.0
-numpy>=1.24
-openai>=1.0
+# Pinned to the versions we actually tested, because the judges rebuild this image
+# and a release landing between now and judging would go into the graded run
+# untested. That is not hypothetical: `openai>=1.0` resolved to 3.14.1, which
+# vendors httpx2, whose decompression raises `TypeError: process() takes no
+# keyword arguments` against an older brotli/zstandard -- and it failed AFTER the
+# HTTP response arrived, so every model call died silently (PLAN, CP3 notes).
+# Verified identical inside the container and on both machines.
+openai==3.14.1
+pandas==3.0.5
+numpy==2.5.3

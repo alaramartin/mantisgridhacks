@@ -14,6 +14,8 @@ whether anything failed along the way.
 """
 from __future__ import annotations
 
+import os
+
 from origin.config import ESCALATE_MARGIN, GATE_MARGIN, GATE_SUPPORT
 from origin.contract import Analysis, fmt_ts, legal_reasons
 
@@ -83,6 +85,27 @@ def validate(a: Analysis, d: dict) -> tuple[list[dict], str, list[str]]:
     answers: list[dict] = []
 
     picks = d.get("picks")
+    if picks and os.environ.get("ORIGIN_REASON_ONLY") and a.candidates:
+        # Asking the model to keep the engine's component is not enough; one that
+        # names a different one anyway must not get it. Measured on the holdout,
+        # the models match the engine on reason (55.6%) and lose on component
+        # (44-48% vs 55.6%) -- so the engine keeps the component, the model keeps
+        # the reason, and the timestamp (derived from the component's signals)
+        # stays on the engine's side of the line too.
+        from origin.router import pinned_cids
+        pins = pinned_cids(a)
+        for i, pk in enumerate(picks[:n]):
+            # Every slot, not just the first. Two of the six holdout losses were
+            # multi-failure cases where the model kept answer 1 and wrecked
+            # answer 2 (row 48: it replaced a correct `checkoutservice` with
+            # `node-6`), so pinning only the top answer would have missed them.
+            if i < len(pins) and pk.get("cid") != pins[i]:
+                was, now = known.get(pk.get("cid")), known.get(pins[i])
+                notes.append(
+                    f"reason-only mode: answer {i + 1} kept the engine's "
+                    f"{now.component if now else pins[i]} over the model's "
+                    f"{was.component if was else pk.get('cid')}; took only its reason")
+                pk["cid"] = pins[i]
     if picks:
         used: set[str] = set()
         for p in picks[:n]:
