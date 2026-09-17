@@ -72,3 +72,41 @@ def test_committed_split_still_matches_the_dataset():
     assert set(pd.read_csv(SPLITS / "dev_tune.csv").row_id) == set(tune)
     # the split files must keep query_dev.csv's columns, since run.py reads them
     assert list(pd.read_csv(SPLITS / "holdout.csv").columns) == list(q.columns)
+
+
+def test_split_files_have_no_carriage_returns():
+    """core.autocrlf=true rewrote these on checkout, putting a \r inside every
+    multi-line `scoring_points` field. score.py extracts scoring points with
+    `([^\n]+)`, so it captured the \r too and "node-6" never matched
+    "node-6\r" -- every case scored 0.000 on a correct answer, silently.
+    .gitattributes now pins *.csv to -text; this test is the tripwire."""
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    for name in ("dev_tune", "holdout"):
+        raw = (root / "eval" / "splits" / f"{name}.csv").read_bytes()
+        assert b"\r" not in raw, f"{name}.csv has carriage returns; scoring will silently return 0"
+
+
+def test_a_correct_answer_actually_scores_against_the_real_split():
+    """End-to-end tripwire: feed the split's own expected answer back in and
+    require a perfect score. Catches any future mangling of the query files."""
+    import sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(root))
+    import pandas as pd
+    from score import evaluate
+    from run import format_prediction
+    q = pd.read_csv(root / "eval" / "splits" / "dev_tune.csv")
+    import re
+    row = next(r for r in q.itertuples(index=False)
+               if len(re.findall(r"root cause component is ([^\n]+)", str(r.scoring_points))) == 1
+               and len(re.findall(r"root cause reason is ([^\n]+)", str(r.scoring_points))) == 1
+               and "occurrence time is within" in str(r.scoring_points))
+    sp = str(row.scoring_points)
+    comp = re.findall(r"root cause component is ([^\n]+)", sp)[0]
+    reason = re.findall(r"root cause reason is ([^\n]+)", sp)[0]
+    when = re.findall(r"\(i\.e\., <=1min\) of ([^\n]+)", sp)[0]
+    pred = format_prediction([{"datetime": when, "component": comp, "reason": reason}])
+    _, failed, score = evaluate(pred, sp)
+    assert score == 1.0, f"the split's own answer scores {score}, failed={failed}"

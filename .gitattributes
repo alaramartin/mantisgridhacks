@@ -1,0 +1,10 @@
+# Keep CSVs byte-exact across platforms.
+#
+# core.autocrlf=true rewrote eval/splits/*.csv with CRLF on checkout. Their
+# `scoring_points` column is a multi-line quoted field, so every expected answer
+# gained a trailing \r -- and score.py extracts scoring points with `([^\n]+)`,
+# which captures the \r as part of the string. "node-6" then never equals
+# "node-6\r" and EVERY case scored 0.000, silently, on a correct answer.
+# Judged runs are unaffected (judges supply their own query.csv), but our own
+# eval and anything reproducing REPORT.md's tables are not.
+*.csv -text
