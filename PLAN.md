@@ -885,23 +885,27 @@ Work **only from dev-tune results** (`eval/results/engine_dev_tune_per_case.csv`
 from Person 2's harness). Never open holdout per-case results. Log every change
 in `REPORT.md` → "Tuning log" (what, why, dev-tune before → after).
 
-- [ ] **Failure taxonomy on dev-tune (by 1:00).** For every dev-tune case not
+- [x] **Failure taxonomy on dev-tune (by 1:00).** For every dev-tune case not
       fully solved, classify the first thing wrong, in this order: wrong count
       (should be impossible) · time off > 60 s · wrong level (node vs pod) ·
       symptom picked over cause (true component is a lower candidate) · true
       component not a candidate at all · wrong reason within the network group
       · wrong reason otherwise. Write the counts into `REPORT.md` → "Engine
       failure taxonomy (dev-tune)". To look at a case: `python -m origin.engine --row <id>`.
-- [ ] **Fix the biggest bucket first (by 1:35).** Allowed levers, one at a time,
+- [x] **Fix the biggest bucket first (by 1:35).** Allowed levers, one at a time,
       each re-scored on dev-tune: `ONSET_SHIFT_S` (0 / −30 / −60),
       `REASON_RULES` patterns and weights, edge vote weights,
       `CAUSAL_DEMOTE`, `NODE_PROMOTE_*`, `SPIKE_MAX_SAMPLES`. **Not allowed:**
       anything naming a specific component, day or case.
-- [ ] **Speed (by 1:45).** Run the 21 holdout **instructions** (no scoring) through
+- [x] **Speed (by 1:45).** Run the 21 holdout **instructions** (no scoring) through
       `analyze` with timings and report mean / max seconds. Target mean < 15 s on a laptop
       (the judge's 2 CPUs are slower; Person 2 measures that in Docker).
       If over: cache per-day metric reads, skip `metric_service`, reduce edge signals to
       edges with ≥ 50 baseline calls.
+      > done, no change needed. **Holdout instructions (no scoring, timing only): mean 4.2 s, max 16.6 s**
+      > per case. dev-tune: mean 3.66 s, max 16.1 s. In the container, 20 routed cases took 5:54 (17.6 s/case
+      > mean) — the engine is ~20% of that, the rest is the two model calls. The 16 s maxima are all the
+      > one-off `log_service` day pass; `config.LOAD_LOGS = False` removes it (cut-order #1).
 
 ### 🛑 CHECKPOINT 4 — docker + final eval (1:45)
 
