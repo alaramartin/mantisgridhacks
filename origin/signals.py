@@ -12,8 +12,9 @@ from functools import lru_cache
 import numpy as np
 import pandas as pd
 
-from origin.config import (BASE_RANGE_GUARD, DISAPPEAR_MIN_BASE, DISAPPEAR_VOTES, EDGE_BUCKET_S,
-                           EDGE_ERROR_VOTES, EDGE_GAP_VOTES, EDGE_MIN_BASE_CALLS, K, REASON_RULES,
+from origin.config import (BASE_RANGE_GUARD, DISAPPEAR_MIN_BASE, DOWN_IS_LOAD, DISAPPEAR_VOTES, EDGE_BUCKET_S,
+                           EDGE_ERROR_VOTES, EDGE_GAP_VOTES, EDGE_MIN_BASE_CALLS, K, MAGNITUDE_RULES, PERIODIC_LAGS_S,
+                           PERIODIC_TOL_S, REASON_RULES,
                            SPIKE_MAX_SAMPLES, TAU, Z_CAP)
 from origin.contract import Signal, Window, legal_reasons
 
@@ -52,8 +53,23 @@ def _guarded_onset(ts: np.ndarray, vals: np.ndarray, s: dict, base_lo: float, ba
     if len(breach) < K:
         return None, 0
     run = np.convolve(breach.astype(int), np.ones(K, int), mode="valid") == K
-    idx = np.flatnonzero(run)
-    return (float(wt[idx[0]]), int(breach.sum())) if len(idx) else (None, 0)
+    for i in np.flatnonzero(run):
+        if not _periodic(ts, vals, float(wt[i]), float(wv[i]), s["base_median"]):
+            return float(wt[i]), int(breach[i:].sum())
+    return None, 0
+
+
+def _periodic(ts: np.ndarray, vals: np.ndarray, onset: float, value: float, median: float) -> bool:
+    """True if the series already reached at least half of this departure at the same clock offset
+    PERIODIC_LAGS_S earlier (hourly / half-hourly jobs), so the breach is routine, not a fault."""
+    half = median + 0.5 * (value - median)
+    for lag in PERIODIC_LAGS_S:
+        m = np.abs(ts - (onset - lag)) <= PERIODIC_TOL_S
+        if m.any():
+            v = vals[m]
+            if (value >= median and v.max() >= half) or (value < median and v.min() <= half):
+                return True
+    return False
 
 
 def _signal(kind, component, level, source, cmdb_id, kpi, s, onset, votes, breach=None) -> Signal:
@@ -95,6 +111,12 @@ def metric_signals(w: Window) -> list[Signal]:
             continue
         s, onset, breach = r
         votes = reason_votes(level, kpi)
+        if s["direction"] != ("down" if re.search(DOWN_IS_LOAD, kpi, re.I) else "up"):
+            votes = ()          # e.g. load falling: evidence of change, not of this load reason
+        for lv, pattern, floor, reason, rank_ in MAGNITUDE_RULES:
+            if votes and lv == level and abs(s["peak_value"]) >= floor and re.search(pattern, kpi, re.I):
+                votes = ((reason, rank_ * Z_CAP / max(s["score"], 1e-9)),)
+                break
         if level == "node" and votes and votes[0][0] == "node CPU load" and breach <= SPIKE_MAX_SAMPLES:
             votes = (("node CPU spike", votes[0][1]),)
         out.append(_signal("metric", comp, level, f"{source}.csv", cmdb_id, kpi, s, onset, votes, breach))

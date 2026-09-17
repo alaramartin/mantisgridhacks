@@ -20,14 +20,26 @@ def test_reason_votes_are_legal_for_level():
 
 def test_metric_step_gives_signal_with_onset():
     fault = LO + 600
-    w = window([series("n-1.api-0", "container_cpu_usage_seconds", "pod", "api-0", "metric_container", fault_at=fault),
+    w = window([series("n-1.api-0", "container_cpu_usage_seconds", "pod", "api-0", "metric_container", fault_at=fault,
+                       jump=5.0),
                 series("n-1.web-0", "container_cpu_usage_seconds", "pod", "web-0", "metric_container", seed=1)])
     sigs = build_signals(w)
     assert [s.component for s in sigs.values()] == ["api-0"]
     s = sigs["F1"]
     assert s.onset_ts == fault and s.direction == "up" and s.source == "metric_container.csv"
     assert s.reason_votes == {"container CPU load": 1.0}
-    assert s.first_value > 40 and s.base_n == 60
+    assert s.first_value > 5 and s.base_n == 60
+
+
+def test_magnitude_rule_and_direction():
+    up = series("n-1.api-0", "container_fs_reads_MB./dev/vda", "pod", "api-0", "metric_container",
+                fault_at=LO + 600, jump=5000.0)
+    down = series("n-1.web-0", "container_cpu_usage_seconds", "pod", "web-0", "metric_container",
+                  fault_at=LO + 600, jump=-0.9, seed=2)
+    sigs = {s.component: s for s in build_signals(window([up, down])).values()}
+    r = sigs["api-0"]
+    assert list(r.reason_votes) == ["container read I/O load"] and r.score * r.reason_votes["container read I/O load"] >= 50
+    assert sigs["web-0"].direction == "down" and sigs["web-0"].reason_votes == {}   # a CPU drop is not CPU load
 
 
 def test_baseline_range_guard_drops_spikes_seen_in_baseline():
