@@ -14,14 +14,17 @@ MONTHS = {m: i for i, m in enumerate(
     ["january", "february", "march", "april", "may", "june", "july",
      "august", "september", "october", "november", "december"], 1)}
 
-WORDS = {"one": 1, "a single": 1, "two": 2, "three": 3, "four": 4, "five": 5}
+WORDS = {"one": 1, "a single": 1, "a": 1, "an": 1, "two": 2, "three": 3, "four": 4, "five": 5}
 
 # Same shape as the starter's agents/heuristic.py::parse_window (the second bound
 # may name its own date), but the result is built in UTC+8, not UTC.
 _WINDOW = re.compile(r"(\w+)\s+(\d{1,2}),?\s+(\d{4}).{0,40}?(\d{1,2}):(\d{2})"
                      r"\s*(?:to|-|and|until)\s*.{0,40}?(\d{1,2}):(\d{2})", re.I | re.S)
 _SECOND_DATE = re.compile(r"(?:to|-|and|until)\s*(\w+)\s+(\d{1,2}),?\s+(\d{4})", re.I)
-_COUNT = re.compile(r"\b(one|a single|two|three|four|five|\d+)\s+failures?\b")
+_COUNT = re.compile(r"\b(one|a single|an?|two|three|four|five|\d+)\s+failures?\b")
+# The asked fields come from the last sentence ("Please pinpoint the root cause occurrence
+# datetime."). Earlier sentences describe what is unknown and can mention more fields.
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z])")
 
 
 def _window(instruction: str, notes: list[str]) -> tuple[datetime, datetime]:
@@ -50,7 +53,14 @@ def _count(text: str, notes: list[str]) -> int:
     return int(g) if g.isdigit() else WORDS[g]
 
 
-def _asks(text: str) -> dict[str, bool]:
+def _asks(text: str, notes: list[str]) -> dict[str, bool]:
+    sentences = [x for x in _SENTENCE_END.split(text.strip()) if x.strip()]
+    last = sentences[-1].lower() if sentences else ""
+    if any(w in last for w in ("component", "reason", "time", "datetime")):
+        text = last
+    else:
+        notes.append("last sentence names no field; reading asked fields from the whole instruction")
+        text = text.lower()
     return {
         "datetime": any(p in text for p in ("occurrence time", "occurrence datetime",
                                             "datetime", "time of")),
@@ -75,5 +85,5 @@ def parse_instruction(instruction: str) -> Case:
     text = instruction.lower()
     lo, hi = _window(instruction, notes)
     lo_ts, hi_ts = lo.timestamp(), hi.timestamp()
-    return Case(instruction=instruction, n_failures=_count(text, notes), asks=_asks(text),
+    return Case(instruction=instruction, n_failures=_count(text, notes), asks=_asks(instruction, notes),
                 lo_ts=lo_ts, hi_ts=hi_ts, days=_days(lo_ts, hi_ts), notes=notes)
