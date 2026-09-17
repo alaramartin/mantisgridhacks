@@ -1,3 +1,5 @@
 config,split,repeat,n,mean_score,fully_solved,dollars_mean,s_per_case_mean,s_per_case_max,wall_total_s,git_sha,timestamp
 heuristic,dev_tune,1,49,0.0561,1,0.0,1.46,5.94,72.8,22bebd0,2026-09-17T17:44:45+00:00
 engine,dev_tune,1,49,0.539,18,0.0,3.73,16.01,183.7,de8c215,2026-09-17T18:28:47+00:00
+engine,dev_tune,1,49,0.539,18,0.0,0.0,0.01,0.6,7080137,2026-09-17T19:07:30+00:00
+engine,dev_tune,1,49,0.5747,21,0.0,3.66,16.08,180.2,7080137,2026-09-17T19:13:00+00:00

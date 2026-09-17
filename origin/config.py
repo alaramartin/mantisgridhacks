@@ -17,7 +17,12 @@ NODE_SINGLE_POD_FRAC = 0.5    # a node with exactly one anomalous pod this stron
 SPIKE_MAX_SAMPLES = 3         # node CPU breach this short = "node CPU spike"
 MULTI_FAILURE_SEP_S = 300     # for n >= 2, prefer candidates with onsets this far apart
 MAX_CANDIDATES = 15
-ONSET_SHIFT_S = 0             # PLACEHOLDER: dev-tune may set -30; log it
+ONSET_SHIFT_S = 0             # global shift applied to every answer time (dev-tune lever)
+# Per-kind shift, added to ONSET_SHIFT_S. A metric sample timestamped T reports the interval that
+# ENDS at T (60 s apart in this dataset), so the fault started somewhere in (T-60, T]; the midpoint
+# is the honest estimate against the evaluator's 60 s tolerance. A trace bucket is already labelled
+# with its start, so it needs no shift. Tuned on dev-tune (49 cases), logged in REPORT.md.
+ONSET_SHIFT_BY_KIND = {"metric": -30.0, "disappear": -30.0}
 METRIC_SOURCES = ("metric_container", "metric_node", "metric_service")
 LOAD_LOGS = True              # log_service error lines (cut-order #1): ~11 s once per day, then cached
 # reason table (docs/data-notes.md kpi lists): (level, regex on the raw kpi_name, reason, weight).
@@ -58,6 +63,16 @@ MAGNITUDE_RULES: list[tuple[str, str, float, str, float]] = [
 ]
 # votes that don't come from a kpi_name (signals.py)
 EDGE_GAP_VOTES = {"container network latency": 1.0, "container network packet retransmission": 0.3}
+# A call-gap anomaly alone cannot tell delay from damage. TCP retransmissions at the node can:
+# corrupted or dropped packets are retransmitted, pure added latency is not. When any node's
+# tcp.retrans_segs / tcp.retrans_pct left its normal range in this window, edge-gap votes switch to
+# this table. On dev-tune the node retrans signal is present in 3/3 packet-corruption cases and
+# absent in the latency case (7 cases have it overall; in the other 4 the top reason comes from
+# non-network evidence anyway). Small sample -- REPORT.md says so.
+EDGE_GAP_VOTES_RETRANS = {"container network packet corruption": 1.0,
+                          "container network packet retransmission": 0.7,
+                          "container network latency": 0.5, "container packet loss": 0.3}
+NODE_RETRANS_KPI = r"tcp\.retrans"
 EDGE_ERROR_VOTES = {"container packet loss": 0.6, "container network packet corruption": 0.4,
                     "container network packet retransmission": 0.4}
 DISAPPEAR_VOTES = {"container process termination": 1.5}

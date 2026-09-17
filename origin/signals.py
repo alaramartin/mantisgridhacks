@@ -13,7 +13,8 @@ import numpy as np
 import pandas as pd
 
 from origin.config import (BASE_RANGE_GUARD, DISAPPEAR_MIN_BASE, DOWN_IS_LOAD, DISAPPEAR_VOTES, EDGE_BUCKET_S,
-                           EDGE_ERROR_VOTES, EDGE_GAP_VOTES, EDGE_MIN_BASE_CALLS, K, MAGNITUDE_RULES, PERIODIC_LAGS_S,
+                           EDGE_ERROR_VOTES, EDGE_GAP_VOTES, EDGE_GAP_VOTES_RETRANS,
+                           EDGE_MIN_BASE_CALLS, NODE_RETRANS_KPI, K, MAGNITUDE_RULES, PERIODIC_LAGS_S,
                            PERIODIC_TOL_S, REASON_RULES,
                            SPIKE_MAX_SAMPLES, TAU, Z_CAP)
 from origin.contract import Signal, Window, legal_reasons
@@ -173,7 +174,8 @@ def disappear_signals(w: Window) -> list[Signal]:
     return out
 
 
-def edge_signals(w: Window, deadline_ts: float | None, notes: list[str]) -> list[Signal]:
+def edge_signals(w: Window, deadline_ts: float | None, notes: list[str],
+                 gap_votes: dict[str, float] | None = None) -> list[Signal]:
     e = w.edges
     if e is None or e.empty:
         return []
@@ -184,6 +186,7 @@ def edge_signals(w: Window, deadline_ts: float | None, notes: list[str]) -> list
     agg = (e.groupby(["caller", "callee", "bucket"], observed=True)
            .agg(gap=("gap_ms", "median"), err=("error", "mean")).reset_index())
     out = []
+    gap_votes = gap_votes if gap_votes is not None else EDGE_GAP_VOTES
     for (caller, callee), g in agg.groupby(["caller", "callee"], sort=False, observed=True):
         if (caller, callee) not in keep:
             continue
@@ -191,7 +194,7 @@ def edge_signals(w: Window, deadline_ts: float | None, notes: list[str]) -> list
             notes.append("trace edge signals cut short: too close to the per-case deadline")
             break
         ts = g["bucket"].to_numpy(float)
-        for col, kind, kpi, votes in (("gap", "edge_gap", "call gap ms", EDGE_GAP_VOTES),
+        for col, kind, kpi, votes in (("gap", "edge_gap", "call gap ms", gap_votes),
                                       ("err", "edge_errors", "call error rate", EDGE_ERROR_VOTES)):
             v = g[col].to_numpy(float)
             ok = np.isfinite(v)
@@ -229,7 +232,13 @@ def build_signals(w: Window, deadline_ts: float | None = None, notes: list[str] 
     """All anomalous signals for the window, IDs F1..Fn by descending score (ties: onset, cmdb_id)."""
     notes = notes if notes is not None else []
     sigs = metric_signals(w) + disappear_signals(w)
-    sigs += edge_signals(w, deadline_ts, notes) + pod_span_signals(w)
+    # delay or damage? see EDGE_GAP_VOTES_RETRANS
+    retrans = [s for s in sigs if s.level == "node" and re.search(NODE_RETRANS_KPI, s.kpi, re.I)]
+    if retrans:
+        notes.append(f"TCP retransmissions left their normal range on {retrans[0].component} "
+                     f"({retrans[0].kpi}), so call-gap facts are read as packet damage, not plain delay")
+    sigs += edge_signals(w, deadline_ts, notes, EDGE_GAP_VOTES_RETRANS if retrans else None)
+    sigs += pod_span_signals(w)
     sigs.sort(key=lambda s: (-s.score, s.onset_ts if s.onset_ts is not None else float("inf"), s.cmdb_id, s.kpi))
     out = {}
     for i, s in enumerate(sigs, 1):
