@@ -1618,9 +1618,24 @@ Update this on `main` after each merge so the humans can `/clear` and resume.
   - **Live end-to-end probe** (one routed case on the fixture, real API): flash 5.3 s → escalated →
     strong 23.4 s, both parsed, model prose passed the grounding check, **$0.0059 for the case**.
     Confirms the llm.py `reasoning` patch against the live API.
-  - **Cost warning for Phase 4:** the "all three fields asked" escalation rule fires on its own, and
-    most tasks ask all three — so as specced, *most* cases go to the strong model. That is the first
-    dial to turn if $/case or s/case is over budget.
+  - **Escalation frequency — priced, and it is NOT a dollar problem.** The "all three fields asked"
+    rule fires on its own and most tasks ask all three, so as specced *most* cases reach GLM-5.2.
+    Costed from the live probe (1,862 billed tokens for the fixture sheet = 2.87 chars/token,
+    ~160 output tokens with thinking off), scaled to a full sheet (8 candidates / 40 facts
+    ≈ 4,545 tokens):
+    | | escalated case | 20-case judged run | limit |
+    |---|---|---|---|
+    | fixture-size prompt | $0.0035 | $0.07 | $25 |
+    | full-size prompt | $0.0074 | **$0.15** | **$25** |
+    That is 0.6 % of the run limit and $0.007 against a $3/case cap; all 70 dev cases escalating is
+    ~$0.52. **Do not spend tuning time on dollars.** Failed calls carry no usage and the breaker caps
+    retries, so there is no runaway path either.
+  - **What escalation does cost is seconds.** After the thinking-off change, strong is 2.4–10.7 s
+    (was 9.5–28.7 s). A typical escalated case is ~21 s (warm load 5 + flash 5 + strong 11) against
+    the 60 s/case average. The combination to watch is **a cold engine load on a case that also
+    escalates**: 34.9 + 5 + 11 ≈ 51 s here, under 60 but not comfortably — and that is native
+    Windows, not the judges' 2 CPU container. **CP4's `make docker` 20-case timing is the measurement
+    that settles it.** If it is over, cut the "all three fields asked" escalation trigger first.
   - **`run.py` writes evidence as cp1252 on Windows.** `Path.write_text()` with no encoding, and that
     call sits OUTSIDE run.py's per-case try/except — so one unencodable character kills the whole run,
     not one case. Contract §2 puts `"caller → callee"` in every edge cmdb_id and U+2192 is not in
