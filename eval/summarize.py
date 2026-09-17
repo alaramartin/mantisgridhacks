@@ -34,7 +34,21 @@ RESULTS = ROOT / "eval" / "results"
 OUT = RESULTS / "summary.md"
 REASONS = set(NODE_REASONS) | set(POD_REASONS)
 TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
-ORDER = ["heuristic", "starter-routed", "engine", "single-flash", "single-strong", "routed"]
+# Display order. Anything not listed still appears -- appended, not dropped: a
+# config missing from this list used to vanish from every table silently, which
+# is the worst possible failure for a results file.
+ORDER = ["heuristic", "starter-routed", "engine", "engine-nocausal",
+         "single-flash", "single-strong", "routed", "routed-flash",
+         "routed-tight", "routed-reason"]
+
+
+def ordered(names) -> list:
+    known = [n for n in ORDER if n in set(names)]
+    return known + sorted(n for n in set(names) if n not in ORDER)
+
+
+def rank_of(name: str) -> int:
+    return ORDER.index(name) if name in ORDER else len(ORDER)
 
 
 def f(x, nd=3, dash="--"):
@@ -54,7 +68,7 @@ def by_config(runs: pd.DataFrame, cases: pd.DataFrame, split: str) -> list[str]:
     if r.empty:
         return ["_no runs on this split yet._"]
     rows = []
-    for name in [n for n in ORDER if n in set(r.config)]:
+    for name in ordered(r.config):
         g, gc = r[r.config == name], c[c.config == name]
         reps = len(g)
         spread = f"{g.mean_score.mean():.3f}" + (
@@ -78,18 +92,17 @@ def by_config(runs: pd.DataFrame, cases: pd.DataFrame, split: str) -> list[str]:
 
 
 def per_task(cases: pd.DataFrame, split: str) -> list[str]:
-    c = cases[(cases.split == split) & cases.config.isin(
-        ["engine", "single-flash", "single-strong", "routed"])]
+    c = cases[(cases.split == split) & ~cases.config.isin(["heuristic"])]
     if c.empty:
         return ["_not enough configs yet._"]
     piv = c.pivot_table(index="task_index", columns="config", values="score", aggfunc="mean")
-    cols = [x for x in ORDER if x in piv.columns]
+    cols = [x for x in ordered(piv.columns) if x in piv.columns]
     rows = [[t] + [f(piv.loc[t, x]) for x in cols] for t in sorted(piv.index)]
     return table(rows, ["task"] + [f"`{x}`" for x in cols])
 
 
 def routing(cases: pd.DataFrame) -> list[str]:
-    c = cases[(cases.config == "routed") & cases.route.notna()]
+    c = cases[cases.config.str.startswith("routed") & cases.route.notna()]
     if c.empty:
         return ["_no routed run recorded yet._"]
     rows = []
@@ -108,8 +121,7 @@ def calibration(cases: pd.DataFrame) -> list[str]:
     four cases, and four cases produced an apparent inversion that the 49-case
     dev_tune sample does not show. A calibration claim at n=4 is not a claim.
     """
-    c = cases[cases.config.isin(["routed", "single-strong", "single-flash", "engine"])
-              & cases.confidence.notna()]
+    c = cases[cases.confidence.notna() & (cases.config != "heuristic")]
     if c.empty:
         return ["_no confidence recorded yet._"]
     rows = []
@@ -164,7 +176,7 @@ def bucket(failed: str) -> str:
 
 
 def taxonomy(cases: pd.DataFrame) -> list[str]:
-    c = cases[cases.config.isin(["routed", "engine", "single-strong"])]
+    c = cases[cases.config != "heuristic"]
     if c.empty:
         return ["_nothing to classify yet._"]
     counts: dict[tuple[str, str], int] = {}
@@ -176,7 +188,7 @@ def taxonomy(cases: pd.DataFrame) -> list[str]:
                 counts[(r.config, bucket(item))] = counts.get((r.config, bucket(item)), 0) + 1
     if not counts:
         return ["_every scoring point passed -- nothing to classify._"]
-    configs = sorted({k[0] for k in counts}, key=lambda x: ORDER.index(x))
+    configs = sorted({k[0] for k in counts}, key=rank_of)
     buckets = sorted({k[1] for k in counts})
     rows = [[b] + [counts.get((cf, b), 0) for cf in configs] for b in buckets]
     rows.append(["**total missed**"] + [sum(v for k, v in counts.items() if k[0] == cf)
