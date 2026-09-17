@@ -1,14 +1,120 @@
-# REPORT.md — engine sections (Person 1, paste-ready)
+# REPORT.md — ORIGIN, Track 1 (Root Cause Analysis)
 
-Person 2 owns `REPORT.md`; these are the sections PLAN assigns to Person 1, written to be pasted in
-whole. The working log with the full sweep detail is `docs/engine-tuning.md` (canonical if the two
-ever disagree). Every number here is dev-tune (49 cases) or a timing measurement — **no holdout
-result is quoted**, because the holdout is scored once, by Person 2, at CP4.
+**What this is.** The eval write-up the submission asks for: what ORIGIN does, how we tested it, what
+the numbers are, where it fails, and what we would change. Numbers are produced by the benchmark's
+own evaluator (`score.py`, vendored unchanged) through our harness (`eval/run_eval.py`); every run is
+appended to `eval/results/runs.csv` with its git SHA.
 
-**Two numbers, never mixed.** `score.py` reports a **partial** score — the fraction of a case's scoring points you got (one point per asked field per failure) — and **strict**, the share of cases where *every* point was right. The published baselines in `docs/scoring.md` are quoted both ways (RCA-Agent on Claude 3.5 Sonnet: **11.34% strict / 17.31% partial**, across all 335 OpenRCA cases on three systems, which is not like-for-like with our 49 Market cases). Every number below says which it is.
+> **P2: the sections marked `⟨P2⟩` are yours — the holdout tables, the routed-vs-single comparison,
+> routing breakdown, calibration and the cost/time numbers. Everything else is written. Delete this
+> block before submitting.**
 
+**Two scores, never mixed.** **Partial** = the fraction of a case's scoring points (one per asked
+field per failure). **Strict** = the share of cases where *every* point was right. `docs/scoring.md`
+puts the published state of the art at **11.34% strict / 17.31% partial** (RCA-Agent on Claude 3.5
+Sonnet) — measured over all 335 OpenRCA cases on three systems, so **not like-for-like** with our 49
+Market cases. We quote both, and we say which.
 
 ---
+
+## How we evaluate
+
+**The splits.** 70 dev cases with answers, split **49 dev-tune / 21 holdout**, stratified 3 holdout
+cases per task type, fixed by `row_id` in `eval/splits/split.json` *before any run* by a
+deterministic rule (`md5(row_id)` order — re-running `eval/split.py` reproduces it byte for byte).
+
+**Holdout discipline.** Nothing was tuned on the holdout. Every parameter change came from dev-tune
+results and is logged below with its before/after number. The engine CLI refuses to score any split
+but dev-tune, so the rule is enforced in code rather than by memory. The judges' 20 cases are a third
+set, on a **different deployment**, which matters more than the split (see "Honest caveats").
+
+**The configurations.** One agent (`agents/origin.py`); `ORIGIN_MODE` changes how much of it runs:
+
+| Config | What runs | Models called |
+|---|---|---|
+| `heuristic` | the starter baseline | none |
+| `engine` | our pipeline with no model calls (ablation) | none |
+| `single-flash` | the full flow, no gate | GLM-4.7-Flash every call |
+| `single-strong` | the full flow, no gate | GLM-5.2 every call |
+| **`routed`** | **the submitted agent** | gate → Flash → GLM-5.2 on escalation |
+
+**What is cached and why the times are honest.** `ORIGIN_ENGINE_CACHE` lets repeat runs reuse an
+engine analysis so three repeats of a model config do not pay the load three times. The cache key
+includes a hash of the engine's own source, so a parameter change can never be silently replayed —
+we found that bug the hard way (a whole dev-tune run came back in 0.6 s with pre-tuning numbers) and
+fixed it. Reported per-case seconds use the **cold** engine time recorded by the agent, not the
+cached read, and the Docker numbers below are from an uncached run.
+
+## Results ⟨P2⟩
+
+<!-- P2: eval/results/summary.md tables 1-3. Main holdout table: config · n · mean partial (± std
+     over repeats) · strict k/n · $/case · $/correct · s/case mean/max · tokens in/out. Then the same
+     for dev_tune labelled "tuned on these — optimistic". Then per task type. -->
+
+_TODO P2 — holdout tables._
+
+**Engine-only, dev-tune (49 cases), for reference:** partial **0.5747**, strict **21/49 (42.9%)**,
+3.8 s/case mean, **$0.00** — no model calls. By task type (partial): task_1 0.556 · task_2 0.357 ·
+task_3 0.800 · task_4 0.250 · task_5 0.786 · task_6 0.556 · task_7 0.645. The starter heuristic on
+the same split: **0.056 partial, 1/49 strict**.
+
+## Routed vs single model ⟨P2⟩
+
+<!-- P2: the required comparison. Headline sentences, computed not asserted, e.g. "routed reached X
+     of single-strong's partial score at Y% of its cost and Z% of its time". If the strong model buys
+     nothing, say so plainly -- docs/scoring.md explicitly prefers a defensible negative result. -->
+
+_TODO P2._
+
+**What we already know points one way, and we should say it:** on the 5 cases we ran both ways during
+demo selection, the **engine alone scored 5/5 strict while routed scored 3/5** — the strong model
+overrode a correct engine answer twice. One documented instance: dev row 0, engine top-1
+`shippingservice-1 / container read I/O load` (correct), strong model chose
+`emailservice2-0 / container network latency` at margin 0.06, scoring zero. The validator allowed it
+because the pick was a legal candidate with a legal reason. So the **override path** deserves its own
+row in the routing breakdown: *cases where the model agreed with engine C1* vs *cases where it
+overrode*, with accuracy for each. If overriding is net-negative, the fix is a validator rule (the
+model may only override when its pick has support comparable to C1's), not a prompt change — and our
+confidence rule already marks exactly those cases **Low**.
+
+## Routing breakdown ⟨P2⟩
+
+<!-- P2: % of cases by route (gate / flash / strong / fallback), mean score and $/case per route. -->
+
+_TODO P2._ From the 20-case Docker run: **gate 4, strong 16, flash-only 0, fallback 0, errors 0**.
+The gate answers ~20% of cases with **zero tokens**, which is the cheapest accuracy on the curve.
+
+## Knowing when it doesn't know ⟨P2⟩
+
+<!-- P2: accuracy by confidence level with counts, then the abstention framing docs/scoring.md asks
+     for: "above confidence T we would abstain on N% of cases, and accuracy on the rest is X times
+     higher". We never abstain in the prediction -- a blank and a wrong answer both score zero -- so
+     this is reported as an analysis, not as behaviour. -->
+
+_TODO P2._ The confidence rule is fixed and stated in the evidence file for every case: **High** =
+margin ≥ 0.35, support ≥ 2, and any model called agreed with the engine; **Low** = margin < 0.15, or
+the model overrode the engine, or a fallback/error/deadline skip; **Medium** otherwise.
+
+## Cost and time ⟨P2⟩
+
+_TODO P2 for the per-config table._ Measured facts already in hand, from the judged path:
+
+| Measurement | Value | Limit |
+|---|---|---|
+| 20 cases, routed, in the container at 2 CPU / 8 GB | **5 min 54 s** (17.6 s/case mean, 37.7 s max) | 20 min |
+| Cost, same run | **$0.126** total, $0.0063/case (max $0.0112) | $25/run, $3/case |
+| Split of that spend | GLM-5.2 **95%**, GLM-4.7-Flash 5% | — |
+| Tokens | 7,451 in / 380 out per case | vs 474 K for a "typical case" that reads the window |
+| Peak memory | 1.74 GiB | 8 GB |
+| Cases over our own 45 s soft deadline | 0 | — |
+| Engine alone, per case | 3.8 s, $0.00 | — |
+
+The token number is the point of the architecture: the model never sees telemetry, only a fact sheet
+of ≤ 40 facts, so we spend ~1.6% of the input tokens a context-stuffing agent would.
+**Prompt caching:** our fact sheet is byte-stable in structure by design (fixed section order, fixed
+legal-reason block), so the repeated scaffolding is cacheable, but **we did not measure cache hits** —
+listed under future work rather than claimed.
+
 
 ## What the engine does
 
@@ -190,3 +296,37 @@ Stated rather than guessed at:
 - The magnitude rules and the retransmission rule assume the **same fault-injection tooling and the
   same shop**. They are the parts most likely to transfer badly, and the first thing we would revisit
   with more of the organizers' data.
+
+---
+
+## What we would change first
+
+1. **`SERVICE_PROMOTE_MIN_PODS` 3 → 2.** It scores *identically* on dev-tune, and it removes a hidden
+   assumption: every service in this bundle has 4 pods, so "at least 3 broke together" can never be
+   satisfied by a 2-pod service — and bare service names are 24 of 54 dev answer components. We did
+   not ship it because the holdout numbers describe the code we shipped, and a re-run was not
+   affordable inside the freeze. It is assumption-reduction, not tuning.
+2. **Make the magnitude rules relative rather than absolute.** Comparing a pod's reads to what *any*
+   pod normally does would survive a deployment with different container sizes. A first attempt was
+   too noisy to adopt in the time available.
+3. **Constrain the override path** if the holdout confirms it is net-negative (see "Routed vs single
+   model").
+4. **Detrend `system.disk.used`** so node disk-space faults stop hiding inside normal variation.
+5. **Measure prompt-cache hits** on the stable fact-sheet prefix.
+
+## Honest caveats
+
+- **Dev-tune numbers are optimistic by construction** — every change was chosen by looking at
+  dev-tune failures. The holdout number is the honest one.
+- **n = 21 on the holdout**: one case is worth ~0.048 of the mean partial score, and `docs/scoring.md`
+  says a one-or-two-case difference is a tie. Differences under ~0.1 between configs are noise, which
+  is what the repeats are for.
+- **Our holdout is a weaker test than the judges' set.** It is 21 unseen *cases* from the *same*
+  deployment, same two days, same 42 pods. It tests whether we fitted particular cases. It does not
+  test whether we fitted this deployment — and the judged bundle is a different one. The assumptions
+  riding on that are named in "What the engine is blind to" and in item 1 above.
+- **Not like-for-like with published results**: the 11.34% strict / 17.31% partial baseline covers 335
+  cases across three systems; ours is 49 Market cases.
+- **The judges run the agent more than once, under undisclosed conditions.** Nothing in the engine
+  names a component, a date or a case: topology is parsed from id shape, reasons from KPI-name
+  patterns. `grep -rn PLACEHOLDER origin agents eval` is part of our submission check.

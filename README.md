@@ -11,6 +11,12 @@ raw data with the file and timestamp, so an on-call engineer can check it in sec
 guesses, and says plainly how sure it is.
 
 <!-- P2: drop the headline numbers in once the holdout run lands. Keep them holdout, not dev-tune. -->
+Scores come in two flavours and we always say which: **partial** = the fraction of a case's scoring
+points (one per asked field per failure); **strict** = cases where every point was right. For
+reference, `docs/scoring.md` puts the published state of the art at **11.34% strict / 17.31%
+partial** — measured on all 335 OpenRCA cases across three systems, so **not like-for-like** with our
+49-case Market split.
+
 **Headline results (holdout, 21 unseen cases):** _TODO P2_ — routed `<score> (± <sd>)` ·
 single-model `<score>` · engine-only `<score>` · starter heuristic `<score>`, at `$<x>/case` and
 `<y>s/case`. Full write-up and the negative results in [REPORT.md](REPORT.md).
