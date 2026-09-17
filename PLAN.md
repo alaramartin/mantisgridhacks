@@ -926,7 +926,7 @@ You develop against `origin/fixture.py` (yours) until real engine output lands a
 
 ## Phase 1 — Env, model spike, split, baseline (10:00–10:30, hard stop 10:30)
 
-- [ ] **Clone + env (by 10:05).** When Person 1 says pushed:
+- [x] **Clone + env (by 10:05).** When Person 1 says pushed:
       `git clone https://github.com/alaramartin/mantisgridhacks.git && cd mantisgridhacks`,
       `git checkout -b person2 && git push -u origin person2`.
       `python3.12 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt pytest`.
@@ -937,7 +937,12 @@ You develop against `origin/fixture.py` (yours) until real engine output lands a
       coding assistants each person uses, agent frameworks (none — OpenAI SDK +
       starter `llm.py`), and a module table "AI-generated / team-written" to
       fill as you go.
-- [ ] **Model spike (by 10:20).** A throwaway script (not committed), findings into
+      done — repo was already local; branch `person2` created and pushed. Python 3.14.7 with
+      pandas/numpy/openai already present, so no venv (PLAN said 3.12; nothing needed it).
+      `.env` written from `.env.example` with the human's key, confirmed gitignored + dockerignored;
+      the shell exports it via `set -a && . ./.env`. Data downloaded with `make data`'s URL (~10 min).
+      `docs/ai-use.md` started.
+- [x] **Model spike (by 10:20).** A throwaway script (not committed), findings into
       `docs/model-findings.md`:
   1. `curl -s https://api.featherless.ai/v1/models | python -c "import sys,json; d=json.load(sys.stdin); print([m['id'] for m in d['data'] if 'zai-org' in m['id']])"`
      — which of the 7 GLM models are listed? Note the live prices if present.
@@ -953,7 +958,18 @@ You develop against `origin/fixture.py` (yours) until real engine output lands a
      the reply has a `reasoning_content` field (print `r.choices[0].message`
      once, from a direct `client.chat.completions.create`).
   4. Note any capacity errors (HTTP 200 with `error` body) you hit.
-- [ ] **Holdout split (by 10:25).** `eval/split.py` (run once, commit its output):
+      done — `docs/model-findings.md`. All 7 documented GLM models are live and live prices match
+      `docs/models.md`. Three findings that change the build:
+      (1) **thinking must be off on every call** — with it on, all four models blow past a 1,200-token
+      output cap mid-JSON and 0/4 parse; the working switch is
+      `extra_body={"chat_template_kwargs": {"enable_thinking": False}}` and
+      `{"thinking": {"type": "disabled"}}` is silently ignored.
+      (2) **Featherless returns the answer in `message.reasoning` with `content` empty** for both Flash
+      models — not `reasoning_content`, no `<think>` tags — so the starter `llm.py` returns `""` on
+      every GLM-4.7-Flash call. `llm.py` needs a `reasoning` fallback in Phase 2.
+      (3) **GLM-5.3-Flash is the unreliable one** (2/4 parses, 207–530 output tokens), so cheap tier is
+      GLM-4.7-Flash first. No capacity errors seen in 20 calls.
+- [x] **Holdout split (by 10:25).** `eval/split.py` (run once, commit its output):
       read `data/Market-cloudbed-1/dev/query_dev.csv` with `pd.read_csv`;
       per `task_index`, sort that task's `row_id`s by
       `hashlib.md5(str(row_id).encode()).hexdigest()` and take the first
@@ -961,9 +977,13 @@ You develop against `origin/fixture.py` (yours) until real engine output lands a
       `eval/splits/dev_tune.csv` (same columns as `query_dev.csv`, filtered) and
       `eval/splits/split.json` (`{"holdout": [...], "dev_tune": [...], "rule": "..."}`).
       Print counts per task. **Do not run anything on holdout until CP4.**
-- [ ] **Baseline scores (by 10:30).** `make dev AGENT=agents.heuristic OUT=out/heuristic && make score OUT=out/heuristic`
+      done — `eval/split.py` + `eval/splits/{holdout,dev_tune,split}.{csv,json}` committed.
+      21 holdout / 49 dev_tune, exactly 3 per task_index (every task has >= 7 cases). Not opened.
+- [x] **Baseline scores (by 10:30).** `make dev AGENT=agents.heuristic OUT=out/heuristic && make score OUT=out/heuristic`
       (free, ~1 min). Record the mean (expect ≈ 0.073) in `docs/model-findings.md`.
 
+      done — `agents.heuristic` over all 70 dev cases: **mean 0.073**, 2/70 fully solved, 1.5 min,
+      0 tokens. Matches the brief's 0.073. task_3 and task_5 score a flat 0.000 — flagged for CP1.
 ### 🛑 CHECKPOINT 1 — contract lock + traps + models (10:30)
 
 Print this to your human and stop:

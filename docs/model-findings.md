@@ -38,64 +38,147 @@ Other `zai-org` entries (ignore — not GLM chat family): `GLM-4-32B-0414`,
 
 ## 2. Latency / tokens / JSON reliability
 
-_Pending — needs `FEATHERLESS_API_KEY` (see "Blocked" below)._
-
-Method: one call per model with a ~3 K-token synthetic fact sheet (34 facts,
+Method: one call per model with a ~2.7 K-token synthetic fact sheet (34 facts,
 5 candidates, the legal-reason list) asking for
 `{"answers":[{"candidate":"C1","reason":"..."}],"confidence":"...","why":"..."}`,
-`temperature=0`, `max_tokens=700`, `timeout=120`.
+`temperature=0`, `max_tokens=1200`, `timeout=180`. Featherless counts the prompt at
+~4,250 tokens. Measured 2026-09-17 ~10:25.
 
-| Model | wall s | prompt tok | completion tok | JSON parsed | `<think>` in body | `reasoning_content` |
-|---|---|---|---|---|---|---|
-| `zai-org/GLM-4.7-Flash` | | | | | | |
-| `zai-org/GLM-5.3-Flash` | | | | | | |
-| `zai-org/GLM-5.2` | | | | | | |
-| `zai-org/GLM-5.1` | | | | | | |
+### Thinking ON (default) — all four models are unusable
 
-## 3. Thinking toggle
+| Model | wall s | prompt tok | completion tok | finish_reason | JSON parsed |
+|---|---|---|---|---|---|
+| `zai-org/GLM-4.7-Flash` | 27.4 | 4,244 | **1,200 (capped)** | `length` | no |
+| `zai-org/GLM-5.3-Flash` | 22.5 | 4,251 | **1,200 (capped)** | `length` | no |
+| `zai-org/GLM-5.2` | 22.4 | 4,251 | **1,200 (capped)** | `length` | no |
+| `zai-org/GLM-5.1` | 19.9 | 4,244 | **1,200 (capped)** | `length` | no |
 
-_Pending — same blocker._
+**Every model ran out of output tokens before finishing the JSON.** They are not so
+much slow as verbose: they narrate the whole chain of thought first. At a 700-token
+cap (first pass) the same thing happened. Thinking-on is not a budget question for
+us — it does not produce a parseable answer at any cap we can afford.
 
-Two candidate switches, each passed as `extra_body`:
+### Thinking OFF (`chat_template_kwargs.enable_thinking = false`)
 
-1. `{"chat_template_kwargs": {"enable_thinking": false}}`
-2. `{"thinking": {"type": "disabled"}}`
-
-| Model | variant | wall s | completion tok | JSON parsed |
+| Model | wall s | completion tok | finish | JSON reliability (4 calls) |
 |---|---|---|---|---|
-| `zai-org/GLM-5.2` | default | | | |
-| `zai-org/GLM-5.2` | chat_template_kwargs | | | |
-| `zai-org/GLM-5.2` | thinking disabled | | | |
-| `zai-org/GLM-4.7-Flash` | default | | | |
-| `zai-org/GLM-4.7-Flash` | chat_template_kwargs | | | |
-| `zai-org/GLM-4.7-Flash` | thinking disabled | | | |
+| `zai-org/GLM-4.7-Flash` | 2.4 – 3.7 | 82 – 95 | `stop` | **4/4** |
+| `zai-org/GLM-5.3-Flash` | 3.0 – 16.1 | 207 – 530 | `stop` | **2/4** (worst) |
+| `zai-org/GLM-5.2` | 1.5 – 17.2 | 43 – 52 | `stop` | **4/4** |
+| `zai-org/GLM-5.1` | 1.6 – 1.8 | 72 – 82 | `stop` | **4/4** |
 
-**Switch we adopt:** _TBD — whichever measurably cuts completion tokens and seconds._
+Overall **14/20 calls parsed**; every failure was either thinking-on truncation or
+GLM-5.3-Flash. The occasional 16–17 s outliers on 5.3-Flash and 5.2 are queueing,
+not generation — the token counts are unchanged.
 
-`llm.py` already strips `<think>…</think>` from the body. If the reply instead
-carries a separate `reasoning_content` field, those tokens are still billed as
-completion tokens even though `llm.py` never shows them — which is exactly why
-the toggle matters for both latency and cost.
+**Conclusions:**
+
+1. **Always send the thinking-off switch.** Non-negotiable, on every tier.
+2. **GLM-5.3-Flash is the least reliable model here** — it keeps narrating even with
+   thinking off (207–530 completion tokens vs 4.7-Flash's ~90) and failed 1 of 4
+   parses by rambling past the JSON. Cheap tier = **`GLM-4.7-Flash` first**, with
+   5.3-Flash only as the availability fallback.
+3. **GLM-5.2 with thinking off easily fits the 25 s budget** (1.5–17 s, ~45 output
+   tokens). The CP1 question "does GLM-5.2 fit?" answers **yes — with thinking off**.
+   With thinking on it neither fits nor parses. **GLM-5.1 is the strong fallback**,
+   and was the fastest model measured (1.6–1.8 s, 4/4 parses).
+
+## 3. The thinking toggle — which switch actually works
+
+| `extra_body` | Effect |
+|---|---|
+| `{"chat_template_kwargs": {"enable_thinking": false}}` | **This is the switch.** GLM-4.7-Flash 1,200 -> 95 tok and 27.4 s -> 2.5 s; GLM-5.2 1,200 -> 45 tok and 22.4 s -> ~4 s; GLM-5.1 1,200 -> 75 tok and 19.9 s -> 1.6 s. |
+| `{"thinking": {"type": "disabled"}}` | **Silently ignored.** GLM-4.7-Flash still 16.3 s at the 700-token cap; GLM-5.2 still 12.5 s at the cap. Do not use. |
+
+So, on every call:
+
+```python
+llm.ask(model, prompt, max_tokens=..., temperature=0, timeout=...,
+        extra_body={"chat_template_kwargs": {"enable_thinking": False}})
+```
+
+### Featherless puts the answer in `message.reasoning`, and `llm.py` drops it
+
+Printing the raw message object (PLAN asked for this) turned up the biggest finding
+of the spike:
+
+```
+model_dump: {"content": "", "role": "assistant", ...,
+             "reasoning": "```json\n{\n  \"answers\": [{\"candidate\": \"C1\", ...}]}\n```"}
+```
+
+- The field is **`reasoning`** — *not* `reasoning_content`, and *not* `<think>` tags.
+  `getattr(msg, "reasoning_content", None)` is `None` on every model, and there are
+  zero `<think>` markers in any reply.
+- When `reasoning` is populated, **`content` is the empty string.**
+- Which field carries the answer **varies by model**, even at `temperature=0`:
+
+| Model (thinking off) | answer arrived in |
+|---|---|
+| `zai-org/GLM-4.7-Flash` | `reasoning` (4/4 calls) |
+| `zai-org/GLM-5.3-Flash` | `reasoning` (4/4) |
+| `zai-org/GLM-5.2` | `content` (4/4) |
+| `zai-org/GLM-5.1` | `content` (4/4) |
+
+**`llm.py` reads only `r.choices[0].message.content` and strips `<think>`.** Against
+GLM-4.7-Flash — our cheap tier, the model that will run on most cases — it therefore
+returns **`""` on every call**, so the agent silently sees an empty answer and falls
+back, while still being billed for the tokens. This is not hypothetical: it is what
+both Flash models did in every measurement above.
+
+**Action (Person 2, Phase 2):** patch `llm.py`'s `_once()` to fall back to
+`message.reasoning`, then `message.reasoning_content`, when `content` is blank, and
+keep the `<think>` strip. This is the only starter file we change beyond `run.py`'s
+default `--agent`; note it in `README.md` and `ATTRIBUTION.md`. Worth raising at the
+merge and with the organisers — anyone using the starter `llm.py` with a Flash model
+is silently getting empty strings.
 
 ## 4. Capacity errors seen
 
-_Pending._ (HTTP 200 with an `error` body and no `choices`; `llm.py` raises
-`ModelUnavailable` and walks its model list.)
+**None.** 20 spike calls across the four models, 2026-09-17 10:20–10:30: no HTTP 200
+`error` bodies, no timeouts, no `ModelUnavailable`. That is a quiet-morning reading,
+not a guarantee — `llm.py`'s retry / fallback / breaker policy stays exactly as it
+is, and each tier keeps a named second choice.
 
 ## 5. Heuristic baseline
 
-_Pending — needs the dataset (downloading)._
+```
+python run.py --dataset data/Market-cloudbed-1 \
+  --queries data/Market-cloudbed-1/dev/query_dev.csv --out out/heuristic --agent agents.heuristic
+python score.py --predictions out/heuristic/predictions.csv --queries data/Market-cloudbed-1/dev/query_dev.csv
+```
 
-`make dev AGENT=agents.heuristic OUT=out/heuristic && make score OUT=out/heuristic`,
-free, all 70 dev cases. Expected ≈ **0.073** mean.
+Free (0 tokens), all 70 dev cases.
 
-| Run | cases | mean score | wall total |
-|---|---|---|---|
-| `agents.heuristic` (dev, 70) | | | |
+| Run | cases | mean score | fully solved | wall |
+|---|---|---|---|---|
+| `agents.heuristic` (dev, 70) | 70 | **0.073** | 2 / 70 (2.9 %) | 1.5 min total, mean 1.3 s/case |
 
-## Blocked / next steps
+Matches the 0.073 the brief predicts, so the harness is wired up correctly.
 
-- **Need the Featherless API key from the human** to fill §2–§4. Put it in `.env`
-  (gitignored) *and* `export FEATHERLESS_API_KEY=...` in the shell — `llm.py`
-  reads the environment, not `.env`. The spike script is written and ready.
-- Dataset (1.3 GB → ~12 GB) is downloading; §5 and the split counts land when it finishes.
+By difficulty: easy 0.083 (30), middle 0.060 (29), hard 0.075 (11).
+
+By task: task_1 0.125, task_2 0.100, **task_3 0.000**, task_4 0.107,
+**task_5 0.000**, task_6 0.083, task_7 0.075.
+
+**task_3 and task_5 score a flat zero** — the baseline never gets one of those right.
+Worth Person 1 and me checking at CP1 what those two task types ask for that the
+others do not. They are 18 of the 70 dev cases and, at 3 apiece, 6 of the 21 holdout
+cases.
+
+## 6. Holdout split
+
+`python eval/split.py` -> committed to `eval/splits/`.
+
+| | cases |
+|---|---|
+| holdout | **21** (3 per `task_index` x 7) |
+| dev_tune | **49** |
+
+Every task has at least 7 cases, so all seven give exactly 3 to holdout:
+task_1 12 -> 3/9, task_2 10 -> 3/7, task_3 8 -> 3/5, task_4 7 -> 3/4,
+task_5 10 -> 3/7, task_6 12 -> 3/9, task_7 11 -> 3/8.
+
+Rule (also in `split.json`, so it is re-derivable): per `task_index`, sort that
+task's `row_id`s by `md5(str(row_id)).hexdigest()` and take the first 3.
+**Nothing is run on the holdout until CP4.**
