@@ -116,51 +116,111 @@ wide, no model is called at all.
 
 ---
 
-# Part B — the 4-minute demo script
+# Part B — how to demo it, and the 4-minute script
 
-**Before you start** (do this while the previous team presents):
+## How the demo works, physically
+
+**It is a terminal demo, live on screen, plus three slides.** There is no UI — Track 1 is a headless
+agent (`docs/scoring.md`: *"There's no interface dimension… Track 2 is the visualization track"*), and
+`docs/submission.md` tells you what a good headless demo looks like: *"Run a case live…, open the
+`evidence/` file it just wrote, and walk through what it ruled out. Then show your eval."* That is
+exactly the shape below.
+
+**Screen layout.** Slides on the projector for beats 1, 2 and 5; the terminal full-screen for beats
+3 and 4. Terminal font **≥ 18 pt**, window maximised, light background if the room is bright.
+
+**Three terminal tabs, opened and `cd`'d before you start:**
+
+| Tab | Purpose | Pre-typed command (don't run yet) |
+|---|---|---|
+| **1** | the live run | `python run.py --dataset data/Market-cloudbed-1 --queries eval/splits/demo.csv --out out/demo` |
+| **2** | the evidence file | `cat out/demo_backup/evidence/38.md` |
+| **3** | the grep into raw telemetry | `awk -F, '$1==1647805140 && $2=="node-6" && $3=="system.io.w_s"' data/Market-cloudbed-1/telemetry/2022_03_21/metric/metric_node.csv` |
+
+**Insurance, run once before you present:**
 
 ```sh
 cd ~/Projects/mantisgridhacks
-set -a; . ./.env; set +a                      # the key must be in the shell
+set -a; . ./.env; set +a                 # nothing reads .env for you
 python run.py --dataset data/Market-cloudbed-1 --queries eval/splits/demo.csv --out out/demo
+cp -r out/demo out/demo_backup           # tab 2 points at the BACKUP, so a live re-run can't destroy it
 ```
 
-That pre-generates the demo case so a hung API call can never sink the beat. **Verified working at
-13:5x today**: route `strong`, margin 0.068, confidence `Low`, answer
+**Verified on the shipped configuration:** route `duel`, confidence `Low`, answer
 `node-6 / node disk write I/O consumption / 2022-03-21 03:39:00` against the key's `03:39:14`,
-28.6 s, 6,569 in / 320 out tokens, no errors.
+**21 s**, 1,469 in / 140 out tokens, no errors. The evidence file is **ASCII-folded**, so fact lines
+read `F6 - metric_node.csv - node-6 - system.io.w_s -- …` (a `-`, not a `·`).
 
-If you want to run it live as well, copy the pre-generated run aside first
-(`cp -r out/demo out/demo_backup`) and keep tab 2 pointed at the **backup**, so a live run that
-overwrites `out/demo` cannot destroy your fallback.
-
-**Regenerate it after any change to how the models are used** — the route, the confidence and
-possibly the answer can move. It costs 30 seconds and about a cent.
-
-Note the evidence file is **ASCII-folded** (`·` renders as `-`, `→` as `->`) because `run.py` writes
-it without an explicit encoding and that killed a run on a Windows machine. So the fact lines read
-`F6 - metric_node.csv - node-6 - system.io.w_s -- …`.
-
-**Setup:** terminal font ≥ 18 pt, window maximised, three tabs — **(1)** the repo for the live run,
-**(2)** the pre-generated evidence file, **(3)** the raw CSV for the grep. Slides on screen 2.
+## The script
 
 | Time | On screen | Who | What to say / do |
 |---|---|---|---|
-| **0:00–0:25** | Slide 1 | P1 | "When one component fails, everything downstream looks broken — the loudest thing is usually a victim, not the cause. The best published agent on this benchmark solves about one case in nine. We're not going to beat that by reading more telemetry: it's twelve gigabytes a day, forty-two pods, nine million spans. Nobody reads that at three in the morning." |
-| **0:25–0:55** | Slide 2 (`pipeline.png`) | P1 | "ORIGIN reads only the half-hour in question. A deterministic engine rebuilds who runs where and who calls whom, ranks the legal suspects, and writes down the facts behind each one. **Then** — and only if it isn't sure — it pays a model to choose between them. The model never sees telemetry; it sees forty facts, about seven thousand tokens, against four hundred and seventy-four thousand to read the window." |
-| **0:55–1:45** | **Terminal, tab 1** — run it live | P1 | Type: `python run.py --dataset data/Market-cloudbed-1 --queries eval/splits/demo.csv --out out/demo`. **It takes ~30 s** (measured 28.6 s: every fresh process pays a cold window load, including the one-off log pass — an in-process warm run is ~16 s, which you will not get here). You have 30 seconds of narration to fill, so use it: "It's reading the window by byte offset, scoring every series against the hour before, rebuilding the topology from the metric ids and the call graph from trace parent-child pairs. This case is ambiguous, so it will escalate to the strong model." When it prints, read the answer: "**node-6, node disk write I/O consumption, 03:39**. The answer key says 03:39:14." |
-| **1:45–2:45** | **Terminal, tab 2** — `cat out/demo/evidence/38.md` | P2 | **Never cut this beat.** "Four sections. The answer. The confidence — it says **Low**, and why: the top two suspects are seven percent apart. It was right anyway, and we'd rather it tell you when to double-check it. Then the evidence: every fact has its file, its component, its KPI, and an epoch timestamp." Scroll to **F6** — the line reads `F6 - metric_node.csv - node-6 - system.io.w_s -- baseline median 0 (60 samples); first outside normal at 2022-03-21 03:39:00 (ts 1647805140), value 502.5`. Then **tab 3**: `awk -F, '$1==1647805140 && $2=="node-6" && $3=="system.io.w_s"' data/Market-cloudbed-1/telemetry/2022_03_21/metric/metric_node.csv` → `1647805140,node-6,system.io.w_s,502.5`. "That's the number from the explanation, in the raw file. Not paraphrased — copied." Then read one "Ruled out" line aloud: "node-4 — first went wrong two minutes after node-6." |
-| **2:45–3:35** | Slide 3 (`topology.png` + table) | P2 | "Nothing in that picture is configured — pod-to-node is parsed from the metric ids, pod-to-pod from the traces. Here's the eval: a 21-case holdout we never tuned on, ⟨N⟩ configurations, repeats for variance." Then the numbers, and **the honest line**: ⟨routed vs single-strong: whichever way it fell⟩. If the strong model bought little: "GLM-5.2 is ninety-five percent of our spend and bought us ⟨X⟩ — that's a result, and we're reporting it rather than hiding it." |
-| **3:35–4:00** | Slide 3 | P1 | "Where it fails: process termination is invisible in this telemetry — no series stops, no restart, no error log — so we say so instead of guessing. Node disk-space faults hide inside a metric that swings by six gigabytes an hour. And our numbers are from one deployment; yours is another, which is exactly why nothing in the engine hardcodes a component name. Thank you." |
+| **0:00–0:25** | Slide 1 | P1 | "When one component fails, everything downstream looks broken — the loudest thing is usually a victim, not the cause. The best published agent on this benchmark fully solves about one case in nine. And it's twelve gigabytes a day, forty-two pods, nine million spans — nobody reads that at three in the morning." |
+| **0:25–0:55** | Slide 2 — `pipeline.png` | P1 | "ORIGIN reads only the half-hour in question. A deterministic engine scores every metric against the hour before, rebuilds who-runs-where from the metric ids and who-calls-whom from the traces, and ranks the legal suspects. **Then**, only if it's genuinely torn, it pays a cheap model to choose between its top two. The model never sees telemetry — forty facts, about seven hundred tokens." |
+| **0:55–1:45** | **Tab 1**, live | P1 | Run it. **It takes ~21 s**, so narrate: "It's seeking to the right bytes rather than loading the file, scoring each series against its own baseline, building the call graph from trace parent-child pairs. This case is ambiguous, so it will consult the model — you'll see `route: duel`." When it prints: "**node-6, node disk write I/O consumption, 03:39.** The answer key says 03:39:14, and the tolerance is sixty seconds." |
+| **1:45–2:45** | **Tab 2**, then **tab 3** | P2 | **Never cut this beat — evidence outweighs accuracy in the rubric.** "Four sections. The answer. The confidence — it says **Low**, and tells you why: the top two suspects are seven percent apart. It was right anyway, and we'd rather it tell you when to double-check it. Then the evidence, where every fact carries its file, its component, its KPI and an epoch timestamp." Scroll to **F6**, then tab 3: the `awk` returns `1647805140,node-6,system.io.w_s,502.5`. "That's the number from the explanation, sitting in the raw CSV. Not paraphrased — copied. A rounded number wouldn't match, so we cut long values instead of rounding them." Then read one ruled-out line: "node-4 — first went wrong two minutes after node-6." |
+| **2:45–3:35** | Slide 3 — `holdout_table.png` + `topology.png` | P2 | "Twenty-one held-out cases we never tuned on. The engine alone gets 0.52 partial, seven of twenty-one fully solved — against the starter baseline's 0.11 and one. **Now the honest part.** We *intended* the GLMs to improve on that. Full escalation to GLM-5.2 made it **worse** — 0.42, five of twenty-one, for a hundred and fifteen times the cost. So we ship the restricted version: one cheap call, top two only, only when the engine is torn. Same accuracy, thirteen hundredths of a cent for a twenty-case run." Then `topology.png`: "and none of this graph is configured — it's parsed out of the metric ids and the traces." |
+| **3:35–4:00** | Slide 3 | P1 | "Two findings we didn't expect. First, we tested our *own* uncertainty signal: when the engine says it's unsure, it's barely more likely to be wrong — correlation of 0.17. So 'call a model when unsure' aims at the wrong cases, which is why escalation didn't pay. Second, an override costs three scoring points, not one, because the timestamp follows the reason. Next we'd give the model less authority rather than more context, and hunt for a trigger that actually predicts correctness. Both are in the report. Thank you." |
 
 ## If something goes wrong
 
 | Problem | Do this |
 |---|---|
-| The live run hangs or the API is slow | Keep talking — "it's escalating to the strong model" — and after ~25 s switch to tab 2 and the pre-generated file. Never wait in silence. |
-| The run finishes with `route: engine_only` or `fallback` | Say so plainly: "no model was reachable, so that's the engine's own answer." **Never** present a fallback as the model deciding. |
-| Demo case answers wrong on the day | Say it: "it got this one wrong — here's what it ruled out and why, which is the part an on-call engineer uses." Then move to the eval. That is a *better* moment than a lucky one. |
-| Asked "why a model at all, if the engine is this good?" | "That's exactly what our eval measures. ⟨the number⟩. The gate means we only pay when the evidence is ambiguous, and on this case it was." |
-| Asked about overfitting | "Our 21-case holdout was never tuned on — but it's the same deployment. The assumptions we'd worry about on yours are the absolute magnitude thresholds and the pods-per-service count, and both are written up in the report." |
-| Out of time at 3:30 | Cut the last beat, not the evidence beat. The evidence *is* the project. |
+| The live run hangs or the API is slow | Keep narrating — "it's consulting the model" — and at ~30 s switch to **tab 2** (the backup). Never wait in silence. |
+| It prints `route: engine_only` or `gate` | Say so plainly: "this one the engine settled on its own, so no model was called — that's the gate, and it's four of twenty cases." That *is* the design, not a failure. |
+| It prints `route: fallback` | "No model was reachable, so that's the engine's own answer." **Never** present a fallback as the model deciding. |
+| The demo case answers wrong on the day | Say it: "it got this one wrong — here's what it ruled out and why, which is the part an on-call engineer actually uses." Then move to the eval. That is a better moment than a lucky one. |
+| "Why use a model at all, if the engine is as good?" | "That's what our eval measures, and the answer is: barely. We ship the smallest amount of model involvement the evidence supports, and we report the negative result rather than hiding it. `docs/scoring.md` says a defensible negative result beats an undefendable positive one — this is ours." |
+| "Isn't 33% strict suspiciously high?" | "It's 21 cases from one deployment; the published 11% is 335 cases across three systems. Not like-for-like, and one case moves us five points. The holdout was never tuned on, and it landed within 0.05 of our tuning split, which is the check we'd want." |
+| "How do you know you didn't overfit?" | "Two ways. The 21 holdout cases were fixed by a hash rule before any run and never scored during tuning. And we rejected changes that moved a single case — the tuning log lists what we rejected and why." |
+| Out of time at 3:30 | Cut the last beat, never the evidence beat. |
+
+---
+
+# Part C — the slides (3 of them) and the figures
+
+All figures are committed in **`docs/figures/`** and regenerate with
+`PYTHONPATH=. python scripts/make_figures.py --row 38`.
+
+| Figure | File | Use |
+|---|---|---|
+| **Pipeline flowchart** | [`docs/figures/pipeline.png`](figures/pipeline.png) | Slide 2, full width |
+| **Holdout comparison table** | [`docs/figures/holdout_table.png`](figures/holdout_table.png) | Slide 3, top |
+| **Topology graph** | [`docs/figures/topology.png`](figures/topology.png) | Slide 3, bottom — the graph visual |
+| **Anomaly + suspects** | [`docs/figures/signal.png`](figures/signal.png) | Spare: use if asked how anomalies are detected |
+| **Accuracy vs cost** | [`docs/figures/cost.png`](figures/cost.png) | Spare: alternative to the table on slide 3 |
+
+**Keep the slides nearly empty — the talking is in Part B, not on the screen.**
+
+### Slide 1 — title
+```
+ORIGIN
+Root cause analysis from telemetry alone
+
+Track 1 · [both names]
+```
+
+### Slide 2 — how it works
+```
+[docs/figures/pipeline.png, full width]
+```
+Nothing else. The caption is inside the image.
+
+### Slide 3 — the numbers and the graph
+```
+[docs/figures/holdout_table.png, top two-thirds]
+
+[docs/figures/topology.png, bottom third]
+```
+If both won't fit legibly, put `holdout_table.png` on slide 3 and `topology.png` on a 4th slide — the
+table is the one that must be readable from the back of the room.
+
+### One-liners worth having on the tip of your tongue
+- **The pitch:** "We don't let the model make up evidence. We let it choose between suspects the data
+  already supports — and only when the data is genuinely ambiguous."
+- **The negative result:** "We built the routing, measured it, and it made things worse. So we shipped
+  the restricted version and reported the finding."
+- **The uncertainty finding:** "Our own confidence signal barely predicts whether we're right — 0.17
+  correlation. That's a problem for escalation routing generally, not just for us."
+- **The honesty line:** "Twenty-one cases, one deployment. The published number is 335 cases across
+  three systems. Not the same comparison."
