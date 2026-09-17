@@ -138,3 +138,18 @@ def test_heuristic_fallback_still_writes_a_trace_line(tmp_path, monkeypatch):
     rec = json.loads((tmp_path / "origin_trace.jsonl").read_text().splitlines()[0])
     assert rec["route"] == "heuristic_fallback"
     assert rec["errors"] == ["origin.engine not importable"]
+
+
+def test_a_failed_model_stage_reaches_the_trace(tmp_path, monkeypatch):
+    """P1 hit a route="fallback" with errors:[] at CP3 -- an openai 3.x TypeError
+    escaped llm.ask, the router recorded it in decision["errors"], and the trace
+    dropped it on the floor. A silent model failure is the worst kind."""
+    monkeypatch.setenv("ORIGIN_MODE", "routed")
+    monkeypatch.setattr(ag, "_route", lambda a, llm, mode, dl: {
+        "route": "fallback", "picks": None,
+        "errors": ["flash: TypeError: process() takes no keyword arguments"],
+        "notes": [], "seconds": {"flash": 0.4, "strong": 0.0}})
+    solve(tmp_path)
+    rec = json.loads((tmp_path / "origin_trace.jsonl").read_text().splitlines()[0])
+    assert rec["route"] == "fallback"
+    assert any("TypeError" in e for e in rec["errors"]), rec["errors"]

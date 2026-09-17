@@ -58,6 +58,26 @@ RUN_COLS = ["config", "split", "repeat", "n", "mean_score", "fully_solved",
             "git_sha", "timestamp"]
 
 
+def load_dotenv() -> None:
+    """Nothing in the repo reads `.env` -- there is no python-dotenv, and the agent
+    must keep taking its key from the environment the way the judges supply it. But
+    an eval run that silently drops to engine-only because the key was not exported
+    wastes a slot and looks like a result, so the harness loads it here."""
+    f = ROOT / ".env"
+    if not f.exists():
+        return
+    for line in f.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+
+
+def needs_key(cfg: dict) -> bool:
+    return cfg["agent"] in ("agents.origin", "agents.routed") and \
+        cfg["env"].get("ORIGIN_MODE") != "engine"
+
+
 def git_sha() -> str:
     try:
         return subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT,
@@ -192,6 +212,14 @@ def main() -> None:
     p.add_argument("--repeat", type=int, default=1, help="run it R times (models vary)")
     p.add_argument("--limit", type=int, default=0, help="first N cases of the split")
     args = p.parse_args()
+
+    load_dotenv()
+    if needs_key(CONFIGS[args.config]) and not os.environ.get("FEATHERLESS_API_KEY"):
+        # P1 lost a routed run to this at CP3: with no key every case quietly took
+        # route=engine_only and the summary looked like a real measurement.
+        raise SystemExit(f"{args.config!r} calls models but FEATHERLESS_API_KEY is not "
+                         f"set and no .env supplied it. Every case would silently fall "
+                         f"back to engine-only and the row would be a lie.")
 
     if args.split == "holdout":
         print("!! HOLDOUT. Summary only until CP4 -- do not open per-case results.\n")
