@@ -1,0 +1,99 @@
+MantisGrid AI Hackathon 2026 — Licence
+======================================
+
+This repository combines two kinds of material under different terms: third-party
+datasets, each governed by its own licence, and everything else, which is owned by
+MantisGrid AI. Read both sections below — they apply together.
+
+
+1. Datasets
+-----------
+
+The datasets used by this hackathon are third-party works and remain under their
+respective licences. MantisGrid AI claims no ownership over them. Your use of any
+dataset is governed by that dataset's licence, not by this document.
+
+  Track 1 — OpenRCA
+    Incident telemetry from OpenRCA (Xu et al., ICLR 2025), sourced from the AIOps
+    Challenge series.
+    Licence: CC BY-NC 4.0
+    https://creativecommons.org/licenses/by-nc/4.0/
+
+  Track 2 — MIT SuperCloud TX-GAIA
+    Workload telemetry from the MIT SuperCloud TX-GAIA dataset, HPCA'22 release,
+    accompanying "Enabling Workloads on Large-Scale GPU Accelerated Systems:
+    Characterization, Opportunities, and Implications."
+    Licence: CC BY-NC-ND 4.0
+    http://creativecommons.org/licenses/by-nc-nd/4.0/
+
+    Research sponsored by the United States Air Force Research Laboratory and the
+    United States Air Force Artificial Intelligence Accelerator under Cooperative
+    Agreement FA8750-19-2-1000.
+
+    NoDerivatives (ND) applies: any working tables you generate from the source
+    files are derivatives and may not be redistributed.
+
+See ATTRIBUTION.md for full attribution details. The datasets are not distributed
+in this repository; each track's README explains how to obtain the source data.
+
+
+2. All other content
+---------------------
+
+Except for the third-party datasets described in Section 1, all content in this
+repository — including source code, scripts, configuration, documentation, briefs,
+and challenge materials — is:
+
+  Copyright (c) 2026 MantisGrid AI. All rights reserved.
+
+This content is provided solely to enable participation in the MantisGrid AI
+Hackathon 2026. No licence, express or implied, is granted to use, copy, modify,
+distribute, or create derivative works from it for any other purpose without the
+prior written permission of MantisGrid AI.
+
+
+3. MantisGrid AI APIs and MCP Server — Track 2
+----------------------------------------------
+
+The MantisGrid AI APIs, MCP server, and all associated software, models, algorithms,
+logic, prompts, workflows, configurations, evaluation and scoring mechanisms,
+documentation, and other non-public technology made available for Track 2
+(collectively, the "MantisGrid Technology") are proprietary to MantisGrid AI and are
+provided solely for participation in the MantisGrid AI Hackathon 2026 (the
+"Hackathon").
+
+Participants may use the MantisGrid Technology only for the purposes and duration of
+the Hackathon and only through the interfaces and access methods expressly provided
+by MantisGrid AI.
+
+Participants may not, directly or indirectly:
+
+  (a) copy, modify, reproduce, distribute, sublicense, or create derivative works
+      from the MantisGrid Technology, except as expressly permitted for the
+      Hackathon;
+  (b) decompile, disassemble, reverse engineer, decode, probe, inspect, or otherwise
+      attempt to discover or derive any source code, underlying implementation,
+      algorithms, models, prompts, logic, architecture, evaluation criteria, answer
+      keys, scoring behavior, or other non-public aspects of the MantisGrid
+      Technology;
+  (c) circumvent or attempt to circumvent any technical restrictions, access
+      controls, rate limits, security mechanisms, or usage limitations;
+  (d) use automated or systematic methods to extract, replicate, reconstruct,
+      benchmark for purposes of replication, or infer the internal behavior or
+      implementation of the MantisGrid Technology; or
+  (e) use the MantisGrid Technology for any purpose other than participation in the
+      Hackathon without MantisGrid AI's prior written permission.
+
+All right, title, and interest in and to the MantisGrid Technology, including all
+intellectual property rights therein, remain exclusively with MantisGrid AI. Except
+for the limited right to use the MantisGrid Technology for the Hackathon, no license
+or other rights are granted to participants, whether expressly, by implication,
+estoppel, or otherwise.
+
+
+4. No warranty
+--------------
+
+This repository and its contents are provided "as is," without warranty of any
+kind, express or implied. MantisGrid AI is not liable for any claim, damages, or
+other liability arising from the use of this repository or its contents.

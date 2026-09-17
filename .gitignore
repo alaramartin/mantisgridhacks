@@ -1,0 +1,12 @@
+# Data is downloaded locally, never committed (CC BY-NC 4.0, ~12 GB) -- see ATTRIBUTION.md
+data/
+out/
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+cache/

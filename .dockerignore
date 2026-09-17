@@ -1,0 +1,11 @@
+# Keep the build context small and secret-free. data/ is ~12 GB.
+data/
+out/
+.env
+.env.*
+.git/
+.venv/
+__pycache__/
+*.pyc
+eval/results/
+docs/
