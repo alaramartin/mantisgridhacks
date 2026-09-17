@@ -1037,7 +1037,7 @@ Print this to your human and stop:
 
 ## Phase 2 — score_series, fixture, agent skeleton, harness (10:30–11:30, hard stop 11:30)
 
-- [ ] **`origin/anomaly.py` `score_series` (by 10:50).** Exactly §3.
+- [x] **`origin/anomaly.py` `score_series` (by 10:50).** Exactly §3.
 
   ```
   order = argsort(ts); ts, x = ts[order], values[order]; drop NaN / inf
@@ -1070,13 +1070,13 @@ Print this to your human and stop:
   all-zero baseline with 3 nonzero window points → score ≥ τ and an onset;
   a single spike (1 point) with k = 2 → score < τ; a step up at sample 10 →
   onset = ts[10], `first_value` = the raw value there; a drop → `direction="down"`.
-- [ ] **`origin/fixture.py` (by 11:00).** `make_analysis(n_failures=1) -> Analysis`
+- [x] **`origin/fixture.py` (by 11:00).** `make_analysis(n_failures=1) -> Analysis`
       hand-built with realistic shapes: 5 candidates (a pod with read I/O
       signals, its node, a caller pod demoted by an earlier callee, a pod with an
       `edge_gap` signal, another node), ~12 Signals with plausible numbers,
       `margin` 0.22, `engine_answers` for C1. Also `make_clear_analysis()` with
       margin 0.6 / support 3 (gate case) and a 2-failure variant. `# PLACEHOLDER: fixture until CP3`.
-- [ ] **Patch `llm.py` for Featherless's `reasoning` field (by 10:40) — BLOCKER, do this first.**
+- [x] **Patch `llm.py` for Featherless's `reasoning` field (by 10:40) — BLOCKER, do this first.**
       Measured at CP1 (`docs/model-findings.md` §3): Featherless returns the answer in
       `message.reasoning` with `message.content == ""` on **both Flash models, 4/4 calls**.
       It is not `reasoning_content` and there are no `<think>` tags. `llm.py`'s `_once()`
@@ -1099,17 +1099,21 @@ Print this to your human and stop:
       come back as `'{"a":1}'`; one with both populated must prefer `content`; `<think>`
       stripping must still work on both fields.
 
-- [ ] **Docker installed and `make docker` green (by 11:20) — BLOCKER for CP4, start early.**
+- [x] **Docker installed and `make docker` green (by 11:20) — BLOCKER for CP4, start early.**
       Checked at CP1: **Docker is not installed on Person 2's machine at all** (not on PATH,
       nothing in `Program Files`). Priority #1 needs `make docker` passing at 2 CPU / 8 GB by
       CP4, and Docker Desktop is a large download plus a reboot, so it cannot wait until 1:45.
-      Human action: install Docker Desktop, enable the WSL2 backend, confirm
-      `docker version` works, then `make docker` (builds the image and runs 2 dev cases).
-      If Docker cannot be installed in time, the fallback is for Person 1 to run
-      `make docker` on their machine and paste the output — but the image must be proven
-      somewhere before the submission, because judges run it.
+      **RESOLVED at CP2.** Docker Desktop 4.91.0 / engine 29.8.0 is installed on P2's
+      machine and the daemon is up. The image builds (10 s) and runs 2 dev cases at
+      `--cpus 2 --memory 8g` with the dataset mounted read-only. P1's Mac is no longer
+      needed as a fallback. Two wrinkles, both handled in `scripts/docker_smoke.sh`:
+      `docker` is not on PATH (it lives in `C:/Program Files/Docker/Docker/resources/bin`)
+      and **`make` does not exist on this machine at all**, so `make docker` itself cannot
+      run here — the script is the same commands, and judges run the Dockerfile, not our
+      Makefile. Git Bash also needs `MSYS_NO_PATHCONV=1` or it rewrites `/data` and `/out`
+      into Windows paths and mounts the wrong thing.
 
-- [ ] **Model tiers + agent skeleton (by 11:20).** Append to `origin/config.py` below `# --- PERSON 2 ---`:
+- [x] **Model tiers + agent skeleton (by 11:20).** Append to `origin/config.py` below `# --- PERSON 2 ---`:
 
   ```python
   # tiers confirmed by the CP1 spike (docs/model-findings.md): 4.7-Flash parsed 4/4 at
@@ -1172,7 +1176,7 @@ Print this to your human and stop:
     guess with the window start) and evidence containing the traceback summary.
     **Never return an empty prediction.**
   - If `asks` has no field at all (parser failed), include all three fields.
-- [ ] **Eval harness v1 (by 11:30).** `eval/run_eval.py`:
+- [x] **Eval harness v1 (by 11:30).** `eval/run_eval.py`:
 
   ```
   python -m eval.run_eval --config <name> --split holdout|dev_tune [--repeat R] [--limit N]
@@ -1516,7 +1520,28 @@ Update this on `main` after each merge so the humans can `/clear` and resume.
 - [x] ⏱ 11:00 load gate — cold **3.1 s** / warm **1.0 s** (metrics + traces, first dev case), method: day-cache for metrics,
       seek per shard for traces. With logs: first case of a day 14.2 s, then 1.6–3 s. All 70 dev windows: mean 2.7 s, max
       5.3 s, peak RSS 1.8 GB.
-- [ ] Checkpoint 2 — real window + anomalies (11:30)
+- [x] Checkpoint 2 — real window + anomalies (11:30) — P2 side complete on `person2`; `main` merged in first
+      (fast-forward, no conflicts). **64 tests pass.**
+  - `llm.py` reasoning patch: shipped, 7 tests. Recorded in `ATTRIBUTION.md` and `docs/ai-use.md`.
+    **P1: this changes a starter file** — the only one besides `run.py`'s default `--agent`.
+  - `score_series`: real implementation in `origin/anomaly.py`, 13 tests. P1 can delete
+    `tests/_p1_score_stub.py` and import `origin.anomaly.score_series` instead.
+  - **Contract finding for P1:** `step` (smallest positive gap between distinct baseline values)
+    is the scale floor. A baseline that is perfectly flat apart from ONE outlier has only two
+    distinct values, so that outlier's distance becomes the floor and masks the window. Real
+    jittery telemetry is unaffected; pinned as deliberate in
+    `tests/test_anomaly.py::test_two_valued_baseline_lets_an_outlier_become_the_step_floor`.
+    Not changed unilaterally — it is shared contract.
+  - Heuristic on **dev_tune**: mean **0.056**, 1/49 fully solved (all-70 was 0.073). That is
+    the number ORIGIN has to beat. task_2/3/4/5 are flat 0.000.
+  - Docker: **resolved early**, see the Phase 2 item above. `scripts/docker_smoke.sh` is green.
+  - `agents/origin.py` runs on the fixture and degrades to the engine answer while
+    `origin/router.py` / `validate.py` / `evidence.py` are still Phase 3.
+  - **Flaky test for P1:** `tests/test_load.py::test_first_dev_case` asserts `load_s < 30`.
+    On P2's Windows box that is 23 s in isolation but **31.2 s when the full suite runs
+    alongside anything else** (it failed once during this phase, passed on re-run). P1's own
+    gate measured 14.2 s cold on their machine. Not changed — it is P1's test and P1's
+    threshold — but the margin is thin enough that the judged 2-CPU container may cross it.
 - [ ] Checkpoint 3 — first end-to-end ORIGIN (12:45)
   - Engine-only dev_tune vs heuristic:
   - Grep test passed:

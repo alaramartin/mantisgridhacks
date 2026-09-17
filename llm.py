@@ -124,6 +124,14 @@ class LLM:
         if r.usage:
             u["prompt_tokens"] += r.usage.prompt_tokens or 0
             u["completion_tokens"] += r.usage.completion_tokens or 0
-        text = r.choices[0].message.content or ""
+        # Featherless returns the answer in `message.reasoning` with an EMPTY
+        # `content` on both Flash models (measured 4/4 calls, docs/model-findings.md
+        # section 3). The starter only read `.content`, so every GLM-4.7-Flash call
+        # came back as "" -- billed, and invisible to the agent.
+        msg = r.choices[0].message
+        text = msg.content or ""
+        if not text.strip():
+            text = (getattr(msg, "reasoning", None)
+                    or getattr(msg, "reasoning_content", None) or "")
         # GLM models can think out loud first; keep only the answer
         return re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
