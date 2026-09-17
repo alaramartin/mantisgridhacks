@@ -61,6 +61,12 @@ CONFIGS: dict[str, dict] = {
     # before/after number rather than an assertion. Free to run, no model calls.
     "engine-nocausal": {"agent": "agents.origin", "env": {"ORIGIN_MODE": "engine",
                                                           "ORIGIN_NO_CAUSAL": "1"}},
+    # DUEL: one cheap call, top-2 only, and only when the engine's margin is thin.
+    # Targets the band where the engine is actually wrong (true component is its
+    # rank 1 in 58% of cases but inside its top 3 in 81%) while structurally
+    # protecting the cases it already has right.
+    "routed-duel":   {"agent": "agents.origin", "env": {"ORIGIN_MODE": "routed",
+                                                        "ORIGIN_DUEL": "1"}},
     # the model picks the REASON only; the engine keeps the component and,
     # through it, the timestamp
     "routed-reason": {"agent": "agents.origin", "env": {"ORIGIN_MODE": "routed",
