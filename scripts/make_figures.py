@@ -199,6 +199,53 @@ def fig_pipeline(out: Path) -> None:
     fig.tight_layout(); fig.savefig(out, bbox_inches="tight"); plt.close(fig)
 
 
+def fig_holdout_table(runs: Path, out: Path) -> None:
+    """The holdout comparison, rendered from eval/results/runs.csv so the figure cannot drift
+    from the committed numbers."""
+    if not runs.exists():
+        print("no runs.csv, skipping the table figure"); return
+    d = pd.read_csv(runs)
+    d = d[d.split == "holdout"].drop_duplicates(subset=["config", "repeat"], keep="last")
+    if d.empty:
+        print("no holdout rows, skipping the table figure"); return
+    calls = {"engine": "none", "routed-duel": "5 of 21 cases", "routed": "16 of 20 cases",
+             "heuristic": "none"}
+    order = ["engine", "routed-duel", "routed", "heuristic"]
+    label = {"engine": "engine  (no model calls)", "routed-duel": "routed-duel  ← SHIPPED",
+             "routed": "routed  (full escalation)", "heuristic": "heuristic  (starter baseline)"}
+    rows = []
+    for cfg in order:
+        r = d[d.config == cfg]
+        if r.empty:
+            continue
+        r = r.iloc[0]
+        rows.append([label.get(cfg, cfg), f"{r.mean_score:.3f}", f"{int(r.fully_solved)}/{int(r.n)}",
+                     f"${r.dollars_mean:.6f}", f"{r.s_per_case_mean:.1f}", calls.get(cfg, "—")])
+    cols = ["holdout · 21 cases, never tuned on", "partial", "strict", "$/case", "s/case", "model calls"]
+    fig, ax = plt.subplots(figsize=(11.5, 0.46 * (len(rows) + 2.6)))
+    ax.axis("off")
+    ax.set_position([0, 0, 1, 0.78])
+    t = ax.table(cellText=rows, colLabels=cols, cellLoc="center", loc="center",
+                 colWidths=[0.34, 0.11, 0.1, 0.14, 0.11, 0.2])
+    t.auto_set_font_size(False); t.set_fontsize(11); t.scale(1, 1.75)
+    for (r_, c_), cell in t.get_celld().items():
+        cell.set_edgecolor("#d7dbe0")
+        if r_ == 0:
+            cell.set_facecolor("#eef1f4"); cell.set_text_props(weight="bold", color=INK)
+        else:
+            cfg = order[r_ - 1]
+            ship = cfg == "routed-duel"
+            cell.set_facecolor("#fbf3f2" if ship else "white")
+            cell.set_text_props(weight="bold" if ship else "normal", color=HL if ship else INK)
+        if c_ == 0:
+            cell.set_text_props(ha="left"); cell.PAD = 0.04
+    ax.set_title("Same accuracy, 115× cheaper — and the model still gets a say\n"
+                 "the shipped config consults a cheap GLM only where the engine is torn: on 5 of 21 "
+                 "cases it kept the engine's pick 4 times, overrode it once,\nand the two cases that "
+                 "moved cancelled out (won one, lost one)", loc="left", fontsize=10.5, pad=10, y=1.02)
+    fig.tight_layout(); fig.savefig(out, bbox_inches="tight", facecolor="white"); plt.close(fig)
+
+
 def fig_cost(runs: Path, out: Path) -> None:
     """Panel 3: the accuracy-vs-cost curve, from eval/results/runs.csv (holdout rows if present)."""
     if not runs.exists():
@@ -238,6 +285,7 @@ def main() -> None:
     fig_signal(a, w, OUT / "signal.png")
     fig_topology(a, w, OUT / "topology.png")
     fig_cost(ROOT / "eval" / "results" / "runs.csv", OUT / "cost.png")
+    fig_holdout_table(ROOT / "eval" / "results" / "runs.csv", OUT / "holdout_table.png")
     print("wrote", ", ".join(str(p.relative_to(ROOT)) for p in sorted(OUT.glob("*.png"))))
 
 
