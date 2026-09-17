@@ -1662,8 +1662,54 @@ Update this on `main` after each merge so the humans can `/clear` and resume.
     alongside anything else** (it failed once during this phase, passed on re-run). P1's own
     gate measured 14.2 s cold on their machine. Not changed — it is P1's test and P1's
     threshold — but the margin is thin enough that the judged 2-CPU container may cross it.
-- [ ] Checkpoint 3 — first end-to-end ORIGIN (12:45) — **P2 side complete on `person2`, NOT merged
-      to main (human asked to hold).** Router, validator, confidence and evidence all land with tests:
+
+  **--- P1's merge results (CP3, on `main`) ---**
+
+  - **Engine-only on dev_tune: mean 0.539, 18/49 fully solved, 3.73 s/case (max 16.0 s)** vs the
+    heuristic's 0.073 on all 70 / 0.056 on dev_tune. By task: t1 0.500 · t2 0.214 · t3 0.800 ·
+    t4 0.250 · t5 0.750 · t6 0.556 · t7 0.645. By difficulty: easy 0.476 · middle 0.562 · hard 0.645.
+    Measured with P2's harness (`python -m eval.run_eval --config engine --split dev_tune`, in
+    `eval/results/runs.csv`). The weak spots are the **reason-only tasks (t2, t4)**: network-group
+    reasons, and `container process termination`, which is **invisible in this bundle's telemetry**
+    (see `docs/data-notes.md` → Phase 3 findings: no series stop, no restart, no error log lines in
+    either dev_tune case that has it). 3/55 dev reasons are process termination; we say so honestly.
+  - **Grep test passed, both ways.** `F2 · metric_node.csv · node-6 · system.cpu.iowait — … value 1.29
+    (ts 1647738480)` against
+    `awk -F, '$1==1647738480 && $2=="node-6" && $3=="system.cpu.iowait"' …/metric_node.csv`
+    → `1647738480,node-6,system.cpu.iowait,1.29`. Also automated for every metric fact of the answers
+    in `tests/test_engine.py::test_grep_metric_facts_against_raw_csv`.
+  - `make validate` with `agents.origin`: **passes, 0 warnings.** `make dev N=3` writes 3 evidence
+    files and `origin_trace.jsonl`; 2/3 solved, and row 0 is exactly right
+    (`shippingservice-1 / container read I/O load / 2022-03-20 09:09:00`).
+  - **P1's integration fixes at the merge** (P2: these touch your files, please glance):
+    `origin/signals.py` imports `origin.anomaly.score_series` and **`tests/_p1_score_stub.py` is
+    deleted**. For zero-baseline series, signals now recompute `peak_ts`/`peak_value` as the largest
+    departure: `score_series` ranks those by z, which ties at `Z_CAP`, so its "peak" is the *first*
+    breach — correct for scoring, but `config.MAGNITUDE_RULES` (what separates read/write I/O from CPU)
+    reads `peak_value`, and facts print it as the peak. Same rows, same file, different sample.
+    Two assertions in `tests/test_evidence.py` expected `cmdb_id=` / `epoch=` / `2.7e+07`;
+    `origin/facts.py` renders the format PLAN §Phase 3 specifies, so they now check the same four
+    things in that spelling (a raw value is printed as the file holds it, cut never rounded).
+  - **`tests/test_load.py` cold-load ceiling: 30 s → 120 s.** P2 was right not to touch it — it was a
+    bad assertion, not a slow machine. It is a cold load including the one-off `log_service` day pass
+    (14 s on P1's Mac, 35 s on P2's box); the number that actually binds is measured in Docker.
+    `config.LOAD_LOGS = False` removes that pass entirely and is cut-order #1.
+  - Accepted from P2, no P1 action: the §4 `heuristic_fallback` route value, the thinking-OFF strong
+    tier, and the ASCII fold of evidence (`→` renders as `->`).
+  - **Docker, measured early on P1's Mac (engine-only, so CP4 still needs the key):** image 466 MB,
+    builds in 20 s; 2 cases pass at `--cpus 2 --memory 8g`; **20 cases in 1 min 27 s** (4.3 s/case
+    mean, 15.3 s max), **peak memory 1.69 GiB of 7.65**, writes only `/out`, `data/` excluded from the
+    build context. So the engine's share of the 20-minute limit is ~1.5 min, leaving ~18 min for
+    routing — P2's ~21 s escalated case fits with room. P2's cold-load + escalation worry (≈51 s) does
+    not reproduce here: the cold case in Docker was 15.3 s, not 34.9 s.
+  - **Routed path could not be verified at the merge: no `FEATHERLESS_API_KEY` in the shell**, so all
+    smoke cases took `route=engine_only` (no errors, 0 tokens). Nothing in the repo loads `.env` —
+    there is no `python-dotenv` — so the file alone does nothing; use `set -a; . ./.env; set +a`.
+- [x] Checkpoint 3 — first end-to-end ORIGIN (12:45) — **MERGED on `main`** by Person 1's machine
+      (`--no-ff` person1 then person2; the only overlapping files were `PLAN.md` and `origin/config.py`,
+      both keep-both-sides, no manual conflict). **147 tests pass on `main`.** P1's merge results are at
+      the end of this entry, after P2's notes.
+      _P2's notes, written before the merge:_ **P2 side complete on `person2`.** Router, validator, confidence and evidence all land with tests:
       **115 tests pass** (excluding `test_load.py`, see below). `run.py` and `Makefile validate` now
       default to `agents.origin`.
   - Engine-only dev_tune vs heuristic: **blocked on P1's `origin/engine.py`.** Until it imports,
