@@ -1512,6 +1512,65 @@ Print this to your human and stop:
 - [ ] **STRETCH #2 — Bounded query tools** for the strong model: after its first reply, allow ≤ 2 requests
       `{"get_series": {"component","kpi"}}` / `{"get_edge": {"caller","callee"}}`, served by
       Person 1's `origin/query.py` (built for STRETCH #1), each result added to the sheet as a new fact ID; re-ask once. Only on escalated cases, only with ≥ 20 s left.
+- [ ] **STRETCH #3 — PROVE THE CAUSAL FILTER IS WORTH ANYTHING (`engine-nocausal` ablation).**
+      _Not built. Raised at CP3. Read this before deciding it is optional._
+
+      **Background — why this matters more than it looks.** We audited our claimed
+      differentiators against the official docs (everyone reads the same brief). Almost
+      everything we thought was distinctive is prescribed in `docs/scoring.md`: always emit a
+      guess; state calibrated confidence; cheap triage before expensive reasoning; stop early
+      when conclusive; compare routed against single-model; report a failure taxonomy; a
+      defensible negative beats an undefendable positive. `docs/data.md` even hands over the
+      parent/child span gap for network faults. Doing all of that well is **the assignment, not
+      an edge**.
+
+      Two ideas survived that audit, and only one is a mechanism no other team is told to build:
+      **demoting a candidate when something it calls went wrong earlier** — the onset-ordered
+      causal filter in `origin/candidates.py`. Nothing in the official docs suggests using
+      who-broke-first along the call graph to separate cause from consequence. `docs/scoring.md`
+      also hints at why it could be the whole ball game: the published *Oracle* baseline was
+      handed the relevant metrics and **still scored 7%** — "knowing where to look isn't the hard
+      part; reasoning about what you find is."
+
+      **The problem: right now it is an assertion.** `docs/scoring.md` says what moves you up is
+      before-and-after numbers, "not an assertion". So measure it.
+
+      **What to build (cheap, two small pieces):**
+      1. **P1:** wrap the demotion step in `origin/candidates.py` in
+         `if not os.environ.get("ORIGIN_NO_CAUSAL"):`. One line.
+      2. **P2:** add `"engine-nocausal": {"agent": "agents.origin", "env": {"ORIGIN_MODE": "engine",
+         "ORIGIN_NO_CAUSAL": "1"}}` to `CONFIGS` in `eval/run_eval.py`. One line.
+
+      Then run both on dev_tune and report: how many cases the filter changed the top candidate
+      in, and what it did to the mean score. Target sentence for REPORT.md and the talk:
+      _"The causal filter changed the top candidate in N of 49 dev cases and moved the mean from
+      X to Y; of those N, M were cases where the loudest component was a downstream victim."_
+
+      **It is allowed to come back negative** — that is the point, and `docs/scoring.md` pays for
+      a defensible negative. If the filter does nothing, we say so and stop claiming it.
+
+- [ ] **STRETCH #4 — propagation chain in the evidence file** (P2 only, ~20 min, no contract change).
+      Make the graph reasoning visible to a human reading one case, ordered by onset:
+
+      ```
+      ## How the failure spread
+        09:09:00  shippingservice-1   <- ROOT: nothing it depends on broke earlier
+           |  calls
+        09:09:30  checkoutservice-2      victim, 30s later  (F6: call gap 14ms -> 910ms)
+           |  calls
+        09:10:30  frontend-0             victim, 90s later  (F9: call gap 31ms -> 1240ms)
+      ```
+
+      Buildable from what `Analysis` already carries: `edge_gap` signals have
+      `cmdb_id == "caller -> callee"`, and each candidate has an onset. **No change to §2 needed**
+      — do NOT add a structured `demoted_by_cid` field mid-event just for this. Degrades to
+      omitting the section when there are no edge signals.
+
+      **Deliberately NOT a graph visualisation.** `docs/scoring.md`: "There's no interface
+      dimension. Your agent runs headless and writes files; nobody watches it work. (Track 2 is
+      the visualization track.)" A renderer earns zero. Text in the evidence file earns evidence
+      marks, which are worth more than accuracy.
+
 - [ ] Thinking on vs off ablation for GLM-5.2 on the holdout (one extra config).
 - [ ] Cheaper strong tier (GLM-4.7 vs GLM-5.2) as an extra row.
 
