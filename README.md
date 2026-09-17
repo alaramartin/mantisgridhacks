@@ -17,9 +17,20 @@ reference, `docs/scoring.md` puts the published state of the art at **11.34% str
 partial** — measured on all 335 OpenRCA cases across three systems, so **not like-for-like** with our
 49-case Market split.
 
-**Headline results (holdout, 21 unseen cases):** _TODO P2_ — routed `<score> (± <sd>)` ·
-single-model `<score>` · engine-only `<score>` · starter heuristic `<score>`, at `$<x>/case` and
-`<y>s/case`. Full write-up and the negative results in [REPORT.md](REPORT.md).
+**Headline results — holdout (21 cases, never tuned on):**
+
+| config | partial | strict | $/case | s/case |
+|---|---|---|---|---|
+| **`engine`** — our deterministic engine, no model calls | **0.524** | **7/21 (33%)** | $0.0000 | 4.4 |
+| `routed` — gate → Flash → GLM-5.2 on escalation | 0.417 | 5/21 | $0.0073 | 12.6 |
+| `heuristic` — the starter baseline | 0.111 | 1/21 | $0.0000 | 0.6 |
+
+**The headline finding is a negative one, and it is the point of the project:** the models make it
+worse. On the holdout, routing costs **0.107 partial and two cases** against the engine alone, and the
+same gap appears on dev-tune (0.575 → 0.440). We also tested *our own* uncertainty signal — the
+engine's margin barely predicts whether it is right (r = 0.17 for strict), so "ask a model when
+unsure" does not target the cases that need help. Details, mechanisms and what we would change in
+[REPORT.md](REPORT.md).
 
 ## How it works
 
