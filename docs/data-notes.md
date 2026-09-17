@@ -47,6 +47,52 @@ never full-reads traces or logs). The full output for `2022_03_20` is below the 
 
 # Trap verification — data/Market-cloudbed-1 / 2022_03_20
 
+## 2. Sortedness by timestamp (1024 evenly spaced byte offsets; a new run starts at a backward jump > 120 s)
+
+A file with few runs, each sorted, can be binary-searched run by run; a file with
+many runs (grouped by series) cannot.
+
+| file | size MB | sampled time range | backward jumps | sorted runs (byte fraction: time range) |
+|---|---|---|---|---|
+| log_service.csv | 705 | 00:00–23:57 | 417 | 418 runs (not time-sorted) |
+| metric_container.csv | 278 | 00:03–23:59 | 497 | 498 runs (not time-sorted) |
+| metric_mesh.csv | 259 | 00:02–23:59 | 472 | 473 runs (not time-sorted) |
+| metric_node.csv | 22 | 00:00–23:58 | 0 | 0.000–0.999: 00:00–23:58 |
+| metric_runtime.csv | 93 | 00:00–23:59 | 487 | 488 runs (not time-sorted) |
+| metric_service.csv | 1 | 00:01–23:59 | 250 | 251 runs (not time-sorted) |
+| trace_span.csv | 1,357 | 00:00–23:55 | 8 | 0.000–0.032: 00:00–07:50<br>0.033–0.065: 00:04–07:54<br>0.066–0.099: 00:08–07:59<br>0.100–0.131: 00:14–07:50<br>0.132–0.331: 00:04–23:55<br>0.332–0.498: 08:09–23:52<br>0.499–0.665: 08:06–23:52<br>0.666–0.832: 08:07–23:46<br>0.833–0.999: 08:01–23:46 |
+
+## 3. UTC+8 check
+
+- row 8 · answer `2022-03-20 13:13:19` UTC+8 → epoch 1647753199; inside the instruction window (parsed as UTC+8): **True**; day folder `2022_03_20` exists: **True**
+    - UTC+8 reading: z 50.0 (capped at 50) on `node-2` · `system.io.avg_q_sz`: value 13.51 at 2022-03-20 13:17:00 (ts 1647753420) vs baseline median 0
+    - 8 h earlier: z 7.2 (capped at 50) on `node-2` · `system.cpu.user`: value 3.69 at 2022-03-20 05:18:00 (ts 1647724680) vs baseline median 1.24
+    - 8 h later: z 14.0 (capped at 50) on `node-2` · `system.io.avg_q_sz`: value 0.14 at 2022-03-20 21:11:00 (ts 1647781860) vs baseline median 0
+- row 13 · answer `2022-03-20 16:31:44` UTC+8 → epoch 1647765104; inside the instruction window (parsed as UTC+8): **True**; day folder `2022_03_20` exists: **True**
+    - UTC+8 reading: z 50.0 (capped at 50) on `node-6.currencyservice-0` · `container_fs_reads./dev/vda`: value 13.5 at 2022-03-20 16:36:00 (ts 1647765360) vs baseline median 0
+    - 8 h earlier: z 4.0 (capped at 50) on `node-6.currencyservice-0` · `container_cpu_system_seconds`: value 0.03 at 2022-03-20 08:30:00 (ts 1647736200) vs baseline median 0.02
+    - 8 h later: no series with data
+- row 25 · answer `2022-03-20 23:09:26` UTC+8 → epoch 1647788966; inside the instruction window (parsed as UTC+8): **True**; day folder `2022_03_20` exists: **True**
+    - UTC+8 reading: z 50.0 (capped at 50) on `node-5.checkoutservice-2` · `container_cpu_cfs_throttled_periods`: value 243.333 at 2022-03-20 23:13:00 (ts 1647789180) vs baseline median 0.666667
+    - 8 h earlier: z 5.2 (capped at 50) on `node-5.checkoutservice-2` · `container_network_transmit_MB.eth0`: value 2.27103 at 2022-03-20 15:07:00 (ts 1647760020) vs baseline median 1.80429
+    - 8 h later: no series with data
+
+## 4. Units (trace vs metric timestamps, trace duration)
+
+- trace_span.timestamp median 1647756941636 (≈1.65e+12) → milliseconds; as seconds/1000: 2022-03-20 14:15:41 UTC+8
+- metric_container.timestamp median 1647761340 (≈1.65e+09) → seconds
+- trace_span.duration over 100,000 sampled rows: median 3,007, p90 6,873, p99 65,876, max 12,972,826
+- parent/child pairs in a contiguous 300 k-row block: 57,376
+  - child starts within parent if duration is **µs** (≤ duration/1000 ms after parent start): 99.9%
+  - child duration ≤ parent duration: 100.0%
+  - median child start offset 1 ms vs median parent duration 6,933 (unit under test)
+
+## 5. Sampling interval (median diff between consecutive timestamps of one series)
+
+- metric_container.csv: median diff 60 s over all series; per-series medians: {60.0: 2576}
+- metric_node.csv: median diff 60 s over all series; per-series medians: {60.0: 339, 300.0: 12}
+- metric_service.csv: median diff 60 s over all series; per-series medians: {60.0: 11}
+
 ## 1. Headers and first rows (head -c 2000, first 3 lines)
 
 ### log/log_service.csv  (705 MB) — timestamp: `1647705660` (integer, seconds)
@@ -98,52 +144,6 @@ timestamp,cmdb_id,span_id,trace_id,duration,type,status_code,operation_name,pare
 1647705600361,frontend-0,a652d4d10e9478fc,9451fd8fdf746a80687451dae4c4e984,49877,rpc,0,hipstershop.CheckoutService/PlaceOrder,952754a738a11675
 1647705600416,frontend-0,bb220a9318fcb31c,9451fd8fdf746a80687451dae4c4e984,7614,rpc,0,hipstershop.ProductCatalogService/GetProduct,952754a738a11675
 ```
-
-## 2. Sortedness by timestamp (1024 evenly spaced byte offsets; a new run starts at a backward jump > 120 s)
-
-A file with few runs, each sorted, can be binary-searched run by run; a file with
-many runs (grouped by series) cannot.
-
-| file | size MB | sampled time range | backward jumps | sorted runs (byte fraction: time range) |
-|---|---|---|---|---|
-| log_service.csv | 705 | 00:00–23:57 | 417 | 418 runs (not time-sorted) |
-| metric_container.csv | 278 | 00:03–23:59 | 497 | 498 runs (not time-sorted) |
-| metric_mesh.csv | 259 | 00:02–23:59 | 472 | 473 runs (not time-sorted) |
-| metric_node.csv | 22 | 00:00–23:58 | 0 | 0.000–0.999: 00:00–23:58 |
-| metric_runtime.csv | 93 | 00:00–23:59 | 487 | 488 runs (not time-sorted) |
-| metric_service.csv | 1 | 00:01–23:59 | 250 | 251 runs (not time-sorted) |
-| trace_span.csv | 1,357 | 00:00–23:55 | 8 | 0.000–0.032: 00:00–07:50<br>0.033–0.065: 00:04–07:54<br>0.066–0.099: 00:08–07:59<br>0.100–0.131: 00:14–07:50<br>0.132–0.331: 00:04–23:55<br>0.332–0.498: 08:09–23:52<br>0.499–0.665: 08:06–23:52<br>0.666–0.832: 08:07–23:46<br>0.833–0.999: 08:01–23:46 |
-
-## 3. UTC+8 check
-
-- row 8 · answer `2022-03-20 13:13:19` UTC+8 → epoch 1647753199; inside the instruction window (parsed as UTC+8): **True**; day folder `2022_03_20` exists: **True**
-    - UTC+8 reading: z 50.0 (capped at 50) on `node-2` · `system.io.avg_q_sz`: value 13.51 at 2022-03-20 13:17:00 (ts 1647753420) vs baseline median 0
-    - 8 h earlier: z 7.2 (capped at 50) on `node-2` · `system.cpu.user`: value 3.69 at 2022-03-20 05:18:00 (ts 1647724680) vs baseline median 1.24
-    - 8 h later: z 14.0 (capped at 50) on `node-2` · `system.io.avg_q_sz`: value 0.14 at 2022-03-20 21:11:00 (ts 1647781860) vs baseline median 0
-- row 13 · answer `2022-03-20 16:31:44` UTC+8 → epoch 1647765104; inside the instruction window (parsed as UTC+8): **True**; day folder `2022_03_20` exists: **True**
-    - UTC+8 reading: z 50.0 (capped at 50) on `node-6.currencyservice-0` · `container_fs_reads./dev/vda`: value 13.5 at 2022-03-20 16:36:00 (ts 1647765360) vs baseline median 0
-    - 8 h earlier: z 4.0 (capped at 50) on `node-6.currencyservice-0` · `container_cpu_system_seconds`: value 0.03 at 2022-03-20 08:30:00 (ts 1647736200) vs baseline median 0.02
-    - 8 h later: no series with data
-- row 25 · answer `2022-03-20 23:09:26` UTC+8 → epoch 1647788966; inside the instruction window (parsed as UTC+8): **True**; day folder `2022_03_20` exists: **True**
-    - UTC+8 reading: z 50.0 (capped at 50) on `node-5.checkoutservice-2` · `container_cpu_cfs_throttled_periods`: value 243.333 at 2022-03-20 23:13:00 (ts 1647789180) vs baseline median 0.666667
-    - 8 h earlier: z 5.2 (capped at 50) on `node-5.checkoutservice-2` · `container_network_transmit_MB.eth0`: value 2.27103 at 2022-03-20 15:07:00 (ts 1647760020) vs baseline median 1.80429
-    - 8 h later: no series with data
-
-## 4. Units (trace vs metric timestamps, trace duration)
-
-- trace_span.timestamp median 1647756941636 (≈1.65e+12) → milliseconds; as seconds/1000: 2022-03-20 14:15:41 UTC+8
-- metric_container.timestamp median 1647761340 (≈1.65e+09) → seconds
-- trace_span.duration over 100,000 sampled rows: median 3,007, p90 6,873, p99 65,876, max 12,972,826
-- parent/child pairs in a contiguous 300 k-row block: 57,376
-  - child starts within parent if duration is **µs** (≤ duration/1000 ms after parent start): 99.9%
-  - child duration ≤ parent duration: 100.0%
-  - median child start offset 1 ms vs median parent duration 6,933 (unit under test)
-
-## 5. Sampling interval (median diff between consecutive timestamps of one series)
-
-- metric_container.csv: median diff 60 s over all series; per-series medians: {60.0: 2576}
-- metric_node.csv: median diff 60 s over all series; per-series medians: {60.0: 339, 300.0: 12}
-- metric_service.csv: median diff 60 s over all series; per-series medians: {60.0: 11}
 
 ## 6. Distinct values
 
@@ -320,4 +320,4 @@ system.udp.connect.num
 - failures per case: {1: 44, 2: 26}
 - task_index counts: {'task_1': 12, 'task_2': 10, 'task_3': 8, 'task_4': 7, 'task_5': 10, 'task_6': 12, 'task_7': 11}
 
-_verify_traps.py ran in 11 s_
+_verify_traps.py ran in 13 s_

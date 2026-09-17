@@ -312,11 +312,12 @@ def main() -> None:
     day_dir = args.dataset / "telemetry" / args.day
     t0 = time.time()
     print(f"# Trap verification — {args.dataset} / {args.day}")
-    headers(day_dir)
+    # decision-relevant sections first, so `| head -60` shows them; raw headers and lists after
     sortedness(day_dir)
     utc8_check(args.dataset)
     tr = units(day_dir)
     sampling(day_dir)
+    headers(day_dir)
     distinct(day_dir, tr)
     answer_forms(args.dataset)
     print(f"\n_verify_traps.py ran in {time.time() - t0:.0f} s_")

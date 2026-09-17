@@ -395,16 +395,18 @@ local stand-in in `tests/_p1_score_stub.py` with the same signature and keys
 
 ## Phase 1 — Push, data, traps, contract, parser (10:00–10:30, hard stop 10:30)
 
-- [ ] **Start the data download first (9:45).** `make data` from the repo root
+- [x] **Start the data download first (9:45).** `make data` from the repo root
       (1.3 GB zip → ~12 GB in `data/Market-cloudbed-1/`). It runs in the
       background while you do the next tasks. If Person 2 can't download, give
       them the zip by USB / AirDrop — don't make them wait on Wi-Fi.
-- [ ] **Push the bootstrap (by 10:05).** The planner already ran `git init`
+      > done. Unzipped everything **except `log_proxy.csv`** (6.5 GB, never read) because the laptop had ~15 GB free; the zip stays in `data/` if it is needed.
+- [x] **Push the bootstrap (by 10:05).** The planner already ran `git init`
       and committed. Ask the human to confirm the remote is empty and they're
       logged in to GitHub, then: `git push -u origin main`,
       `git checkout -b person1 && git push -u origin person1`. Tell the human
       "Person 2 can clone now."
-- [ ] **Contract + config (by 10:12).** Type §1 and §2 into
+      > done. `main` was already on the remote; `person1` created and pushed.
+- [x] **Contract + config (by 10:12).** Type §1 and §2 into
       `origin/contract.py` exactly (implement `fmt_ts` with
       `datetime.fromtimestamp(ts, tz=UTC8).strftime(TIME_FMT)`). Create
       `origin/__init__.py` (empty) and `origin/config.py`:
@@ -436,7 +438,8 @@ local stand-in in `tests/_p1_score_stub.py` with the same signature and keys
   ```
 
   Push these two files to `main` as well (the allowed direct commit) so Person 2 can import them.
-- [ ] **Verify the traps on real files (by 10:25).** Write
+      > done, typed exactly; committed to `main` (4f9a2e8) and pushed.
+- [x] **Verify the traps on real files (by 10:25).** Write
       `eval/verify_traps.py` (run with `python eval/verify_traps.py`) that
       prints evidence for each, and copy its output into `docs/data-notes.md`:
   1. **Headers and first rows** of every file in `telemetry/2022_03_20/{metric,log,trace}/`
@@ -468,7 +471,8 @@ local stand-in in `tests/_p1_score_stub.py` with the same signature and keys
      components look — `node-N`, pod (`name-N`), bare service (`name`), other —
      with counts, and the count of each reason. Do **not** copy component names
      into code.
-- [ ] **Case parser (by 10:30).** `origin/case.py` `parse_instruction()`:
+      > done; see `docs/data-notes.md`. UTC+8 yes (55/55 answer times in their windows). Trace duration is **µs**. Only `metric_node` is time-sorted; `trace_span` is ~10 time-sorted shards (seek per shard); metric_container/service are grouped by series (per-day cache). **24/54 answer components are bare services** → service candidates needed. Sortedness uses 1,024 probes (not 64), because 64 hid the shard structure.
+- [x] **Case parser (by 10:30).** `origin/case.py` `parse_instruction()`:
   - Window: reuse the starter regex from `agents/heuristic.py::parse_window`
     (month name, day, year, `HH:MM` to `HH:MM`, with an optional second date),
     but build the datetimes with `tzinfo=UTC8`. If the second time is ≤ the
@@ -487,6 +491,7 @@ local stand-in in `tests/_p1_score_stub.py` with the same signature and keys
     09:30", "one failure") → `lo_ts` = epoch of 2022-03-20 09:00 UTC+8, n = 1;
     a window crossing midnight; all 70 parse without exception.
 
+      > done; all 70 parse, `asks` matches the task table, `n_failures` matches the answer count on all 70. Changed: count words include `a failure` / `a single failure`; `asks` is read from the **last sentence only** (verbs vary: identify / determine / pinpoint).
 ### 🛑 CHECKPOINT 1 — contract lock + traps + models (10:30)
 
 Print this to your human and stop:
