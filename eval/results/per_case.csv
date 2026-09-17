@@ -356,3 +356,52 @@ single-strong,holdout,3,60,task_2,easy,1.0,0.006662,3.43,4155,192,flash,Low,1.0,
 single-strong,holdout,3,62,task_1,easy,0.0,0.008082,12.77,5286,155,flash,Low,1.0,,2022-03-21 20:26:07
 single-strong,holdout,3,63,task_4,middle,0.0,0.00504,9.71,3207,125,flash,Low,1.0,,2022-03-21 21:52:20; node memory consumption
 single-strong,holdout,3,69,task_2,easy,0.5,0.008481,6.24,5451,193,flash,Medium,2.0,node disk write I/O consumption,container process termination
+routed-flash,dev_tune,1,0,task_6,middle,1.0,0.000399,7.52,5270,142,flash,Low,1.0,shippingservice-1; container read I/O load,
+routed-flash,dev_tune,1,1,task_1,easy,0.0,0.000423,5.64,5427,176,flash,Low,1.0,,2022-03-20 09:54:59
+routed-flash,dev_tune,1,2,task_1,easy,0.0,0.00025,4.34,3037,131,flash,Low,1.0,,2022-03-20 10:25:33
+routed-flash,dev_tune,1,3,task_6,middle,0.0,0.000208,3.47,2475,118,flash,Low,1.0,,node-1; node memory consumption
+routed-flash,dev_tune,1,4,task_3,easy,1.0,0.0,0.0,0,0,gate,High,1.0,shippingservice-1,
+routed-flash,dev_tune,1,5,task_2,easy,0.0,0.000456,4.21,6101,148,flash,Low,1.0,,container network packet corruption
+routed-flash,dev_tune,1,7,task_6,middle,0.5,0.000469,6.28,5801,229,flash,Low,2.0,recommendationservice; container CPU load,node-1; node disk read I/O consumption
+routed-flash,dev_tune,1,8,task_5,middle,1.0,0.0,0.0,0,0,gate,High,1.0,node-2; 2022-03-20 13:13:19,
+routed-flash,dev_tune,1,10,task_1,easy,0.5,0.000275,6.59,2785,235,flash,Low,2.0,2022-03-20 13:39:48,2022-03-20 13:51:51
+routed-flash,dev_tune,1,11,task_1,easy,0.5,0.00072,19.17,6769,700,fallback,Low,2.0,2022-03-20 14:23:15,2022-03-20 14:14:46
+routed-flash,dev_tune,1,12,task_2,easy,0.0,0.000267,5.51,3213,145,flash,Low,1.0,,container network packet retransmission
+routed-flash,dev_tune,1,13,task_5,middle,0.5,0.0,0.0,0,0,gate,High,1.0,2022-03-20 16:31:44,currencyservice-0
+routed-flash,dev_tune,1,14,task_5,middle,0.5,0.000501,8.34,5811,307,flash,Low,2.0,node-4; 2022-03-20 17:23:19,paymentservice; 2022-03-20 17:12:41
+routed-flash,dev_tune,1,15,task_1,easy,0.0,0.000487,8.25,5666,297,flash,Low,1.0,,2022-03-20 17:40:22
+routed-flash,dev_tune,1,16,task_5,middle,1.0,0.000567,13.76,5676,496,flash,Low,2.0,paymentservice; 2022-03-20 18:06:48; emailservice; 2022-03-20 18:24:06,
+routed-flash,dev_tune,1,17,task_2,easy,0.5,0.00057,13.6,5671,504,flash,Low,2.0,container memory load,container network packet corruption
+routed-flash,dev_tune,1,18,task_6,middle,0.0,0.00018,3.86,1959,132,flash,Low,1.0,,container network packet retransmission; frontend-2
+routed-flash,dev_tune,1,20,task_6,middle,0.0,0.00041,4.54,5425,144,flash,Medium,1.0,,shippingservice2-0; container CPU load
+routed-flash,dev_tune,1,22,task_4,middle,0.5,0.000449,8.19,5155,285,flash,Low,2.0,container memory load; 2022-03-20 21:30:16,node disk space consumption; 2022-03-20 21:52:17
+routed-flash,dev_tune,1,25,task_7,hard,1.0,0.0,0.0,0,0,gate,High,1.0,checkoutservice-2; container memory load; 2022-03-20 23:09:26,
+routed-flash,dev_tune,1,26,task_7,hard,1.0,0.0,0.0,0,0,gate,High,1.0,productcatalogservice; container CPU load; 2022-03-20 23:30:10,
+routed-flash,dev_tune,1,29,task_6,middle,0.5,0.000371,3.99,4871,136,flash,Low,1.0,container network latency,frontend-1
+routed-flash,dev_tune,1,31,task_2,easy,0.5,0.000702,19.91,6767,655,flash,Low,2.0,container CPU load,container process termination
+routed-flash,dev_tune,1,32,task_2,easy,0.0,0.000339,3.99,4436,126,flash,Low,1.0,,container process termination
+routed-flash,dev_tune,1,34,task_1,easy,0.5,0.000461,8.43,5240,302,flash,Low,2.0,2022-03-21 01:20:30,2022-03-21 01:06:45
+routed-flash,dev_tune,1,37,task_3,easy,1.0,0.000443,6.0,5450,222,flash,Medium,2.0,node-5; recommendationservice,
+routed-flash,dev_tune,1,38,task_7,hard,1.0,0.000274,4.38,3269,153,flash,Low,1.0,node-6; node disk write I/O consumption; 2022-03-21 03:39:14,
+routed-flash,dev_tune,1,39,task_4,middle,0.0,0.000184,3.08,2173,108,flash,Low,1.0,,container network packet retransmission; 2022-03-21 04:32:44
+routed-flash,dev_tune,1,40,task_5,middle,1.0,0.0,0.0,0,0,gate,High,1.0,node-4; 2022-03-21 05:15:49,
+routed-flash,dev_tune,1,42,task_4,middle,0.0,0.0,0.0,0,0,gate,High,1.0,,container read I/O load; 2022-03-21 07:26:56
+routed-flash,dev_tune,1,44,task_7,hard,0.83,0.000448,6.13,5551,219,flash,High,2.0,node-6; node disk read I/O consumption; productcatalogservice-0; container CPU load; 2022-03-21 07:55:02,2022-03-21 07:46:11
+routed-flash,dev_tune,1,45,task_6,middle,1.0,0.00042,4.21,5560,146,flash,Medium,1.0,shippingservice-1; container CPU load,
+routed-flash,dev_tune,1,46,task_5,middle,0.5,0.0,0.0,0,0,gate,High,1.0,node-1,2022-03-21 08:52:45
+routed-flash,dev_tune,1,47,task_7,hard,0.5,0.000579,9.55,6900,326,flash,Low,2.0,productcatalogservice; container CPU load; 2022-03-21 09:06:25,2022-03-21 09:26:30; checkoutservice; container memory load
+routed-flash,dev_tune,1,49,task_5,middle,0.5,0.000415,4.23,5518,140,flash,Low,1.0,2022-03-21 09:53:57,shippingservice
+routed-flash,dev_tune,1,50,task_2,easy,0.0,0.000304,3.58,3945,119,flash,Low,1.0,,node CPU spike
+routed-flash,dev_tune,1,52,task_1,easy,0.5,0.000425,6.77,5000,251,flash,Medium,2.0,2022-03-21 10:37:56,2022-03-21 10:44:52
+routed-flash,dev_tune,1,53,task_1,easy,0.0,0.000447,5.26,5836,169,flash,Low,1.0,,2022-03-21 11:40:30
+routed-flash,dev_tune,1,54,task_6,middle,1.0,0.000427,3.88,5773,129,flash,Low,1.0,currencyservice; container memory load,
+routed-flash,dev_tune,1,55,task_2,easy,0.5,0.000536,9.82,6022,362,flash,Low,2.0,container write I/O load,container read I/O load
+routed-flash,dev_tune,1,56,task_7,hard,0.5,0.000468,7.15,6030,191,flash,Low,2.0,2022-03-21 14:08:21; emailservice; container write I/O load,container read I/O load; 2022-03-21 14:16:53
+routed-flash,dev_tune,1,57,task_3,easy,0.0,0.0,0.0,0,0,gate,High,1.0,,adservice
+routed-flash,dev_tune,1,58,task_1,easy,0.0,0.000454,7.34,5668,214,flash,Low,1.0,,2022-03-21 15:08:39
+routed-flash,dev_tune,1,61,task_7,hard,0.0,0.000454,9.79,5636,220,flash,Low,1.0,,node-5; 2022-03-21 16:41:47; node disk space consumption
+routed-flash,dev_tune,1,64,task_3,easy,1.0,0.0,0.0,0,0,gate,High,1.0,node-5,
+routed-flash,dev_tune,1,65,task_4,middle,0.5,0.000344,17.98,4001,211,flash,Medium,1.0,2022-03-21 23:15:29,node disk space consumption
+routed-flash,dev_tune,1,66,task_6,middle,1.0,0.0,0.0,0,0,gate,High,1.0,node-4; node CPU load,
+routed-flash,dev_tune,1,67,task_7,hard,0.0,0.000423,6.24,5405,178,flash,Low,1.0,,checkoutservice; 2022-03-21 03:10:48; container network packet corruption
+routed-flash,dev_tune,1,68,task_3,easy,1.0,0.000589,12.92,6782,370,flash,Low,1.0,productcatalogservice,

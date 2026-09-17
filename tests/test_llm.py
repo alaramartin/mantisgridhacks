@@ -65,3 +65,19 @@ def test_usage_is_counted_once_per_call():
     obj.ask("zai-org/GLM-4.7-Flash", "p")
     assert obj.usage["zai-org/GLM-4.7-Flash"] == {
         "prompt_tokens": 100, "completion_tokens": 20, "calls": 1}
+
+
+def test_an_answerless_reply_is_a_failure_not_a_success():
+    """The starter returned "" here, which reads as a successful call: retry,
+    model fallback and the breaker all stay asleep while the call is billed and
+    the caller gets nothing. Raising lets the machinery do its job."""
+    obj = _client(SimpleNamespace(content="", reasoning="", reasoning_content=""))
+    with pytest.raises(llm_mod.ModelUnavailable):
+        obj.ask("m", "p")
+    assert obj.down.get("m", 0) >= 1          # the breaker saw it
+
+
+def test_a_reply_that_is_only_think_tags_is_also_a_failure():
+    obj = _client(SimpleNamespace(content="<think>hmm</think>", reasoning=""))
+    with pytest.raises(llm_mod.ModelUnavailable):
+        obj.ask("m", "p")

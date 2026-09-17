@@ -42,6 +42,10 @@ SPLITS = ROOT / "eval" / "splits"
 
 CONFIGS: dict[str, dict] = {
     "heuristic":     {"agent": "agents.heuristic", "env": {}},
+    # NOT the pristine starter: agents/routed.py calls our patched llm.py. On an
+    # unpatched client this row would score ~0, because every Flash reply arrives
+    # in `message.reasoning` and the starter reads only `.content`. Label it that
+    # way in REPORT.md if it is ever run. (Not run as of CP4.)
     "starter-routed": {"agent": "agents.routed", "env": {}},
     "engine":        {"agent": "agents.origin", "env": {"ORIGIN_MODE": "engine"}},
     "single-flash":  {"agent": "agents.origin", "env": {"ORIGIN_MODE": "single",

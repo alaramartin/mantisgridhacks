@@ -134,4 +134,11 @@ class LLM:
             text = (getattr(msg, "reasoning", None)
                     or getattr(msg, "reasoning_content", None) or "")
         # GLM models can think out loud first; keep only the answer
-        return re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
+        if not text:
+            # Both fields blank. The starter returned "" here, which reads as a
+            # successful call: the retry, the model fallback and the breaker all
+            # stay asleep while the call is billed and the caller gets nothing.
+            # An answerless answer is a failure, so say so.
+            raise ModelUnavailable(f"{model} returned no text in content or reasoning")
+        return text

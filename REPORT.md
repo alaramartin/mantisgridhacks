@@ -57,7 +57,8 @@ against dev_tune only. Holdout per-case results were not opened until CP4.
 | `engine` | our engine, no model at all |
 | `single-flash` | one GLM-4.7-Flash call per case, no gate, no escalation |
 | `single-strong` | one GLM-5.2 call per case, no gate, no escalation |
-| `routed` | the real agent: gate → Flash → GLM-5.2 |
+| `routed` | gate → Flash → GLM-5.2 on escalation |
+| `routed-flash` | gate → Flash, never escalate (added after the breakdown below) |
 
 `routed` and `single-strong` are the comparison `docs/scoring.md` asks for.
 
@@ -165,6 +166,32 @@ They are computed from the table, so if the strong model is not worth its price,
 the sentence says so.
 
 ---
+
+## 4b. A measurement error we made, and how the eval caught it
+
+Breaking `routed` down by the route each case took made it look as if only the
+strong tier was harmful:
+
+| route | n | engine would score | routed scored |
+|---|---|---|---|
+| `gate` (no model) | 11 | 0.727 | 0.727 |
+| `flash` decided | 6 | 0.667 | **0.667** |
+| escalated to GLM-5.2 | 30 | 0.447 | **0.325** |
+
+We read that as "Flash is harmless, the strong tier is the problem", and built
+`routed-flash` (gate → Flash, never escalate) expecting it to recover most of the
+engine's accuracy.
+
+**It did not: 0.476 against the engine's 0.539.** The breakdown was conditioned on
+the outcome. A case only *stays* on the `flash` route when Flash **agrees** with
+the engine — disagreement is itself an escalation trigger — so the six `flash`
+cases were a sample selected for having no effect. Every case where Flash would
+have changed the answer had already been promoted to `strong` and left the sample.
+
+The plain reading is the correct one: **consulting a model on an ambiguous case
+costs accuracy, whichever model it is.** We keep this here because inspecting the
+breakdown would have shipped the wrong conclusion, and running the experiment is
+what caught it.
 
 ## 5. Where it fails
 
