@@ -6,15 +6,18 @@ never scored while tuning; the only thing it was used for is a timing run over i
 Person 2 folds this into `REPORT.md` → "Tuning log"; the numbers come from
 `python -m eval.run_eval --config engine --split dev_tune` (`eval/results/runs.csv`).
 
-| # | Change | Why | dev-tune before → after |
+**Two numbers, never mixed.** `score.py` reports a **partial** score — the fraction of a case's scoring points you got (one point per asked field per failure) — and **strict**, the share of cases where *every* point was right. The published baselines in `docs/scoring.md` are quoted both ways (RCA-Agent on Claude 3.5 Sonnet: **11.34% strict / 17.31% partial**, across all 335 OpenRCA cases on three systems, which is not like-for-like with our 49 Market cases). Every number below says which it is.
+
+
+| # | Change | Why | dev-tune partial → after (strict in brackets) |
 |---|---|---|---|
-| 0 | starting point (CP3 merge) | — | **0.539**, 18/49 solved |
-| 1 | `ONSET_SHIFT_BY_KIND = {"metric": -30, "disappear": -30}` (trace buckets unshifted) | A metric sample stamped T reports the minute *ending* at T, so a fault started in (T−60, T]; the midpoint is the honest estimate against the evaluator's 60 s tolerance. A trace bucket is already labelled with its start. Measured: a flat shift of −30 s lifts 23→25 of 38 time answers inside tolerance, −45 s and beyond collapses it (18, then 14), so the per-kind form is both better grounded and safer | 0.539 → **0.554**, 20/49 |
-| 2 | `EDGE_GAP_VOTES_RETRANS`: when any node's `tcp.retrans_*` leaves its normal range, call-gap facts vote packet **corruption / retransmission / loss** over plain latency | A call-gap anomaly alone cannot tell delay from damage. Corrupted or dropped packets get retransmitted; added latency does not. On dev-tune the node retrans signal is present in **3/3 packet-corruption cases and absent in the latency case** (7 cases have it at all; in the other 4 the top reason comes from non-network evidence). Small sample, physically motivated — stated as such in REPORT | 0.554 → **0.575**, 21/49 (task_2, reason-only, 0.214 → 0.357) |
-| — | `CAUSAL_DEMOTE` 0.3 → 0.5 | **Rejected.** It gains exactly one case (0.575 → 0.585) while 0.4 changes nothing and 0.6 loses a different case. That is a knife edge fitted to one dev row, not a finding, so the SPEC value stands | kept 0.3 |
+| 0 | starting point (CP3 merge) | — | **0.539 partial**, 18/49 strict (36.7%) |
+| 1 | `ONSET_SHIFT_BY_KIND = {"metric": -30, "disappear": -30}` (trace buckets unshifted) | A metric sample stamped T reports the minute *ending* at T, so a fault started in (T−60, T]; the midpoint is the honest estimate against the evaluator's 60 s tolerance. A trace bucket is already labelled with its start. Measured: a flat shift of −30 s lifts 23→25 of 38 time answers inside tolerance, −45 s and beyond collapses it (18, then 14), so the per-kind form is both better grounded and safer | 0.539 → **0.554 partial**, 20/49 strict (40.8%) |
+| 2 | `EDGE_GAP_VOTES_RETRANS`: when any node's `tcp.retrans_*` leaves its normal range, call-gap facts vote packet **corruption / retransmission / loss** over plain latency | A call-gap anomaly alone cannot tell delay from damage. Corrupted or dropped packets get retransmitted; added latency does not. On dev-tune the node retrans signal is present in **3/3 packet-corruption cases and absent in the latency case** (7 cases have it at all; in the other 4 the top reason comes from non-network evidence). Small sample, physically motivated — stated as such in REPORT | 0.554 → **0.5747 partial**, 21/49 strict (42.9%); task_2 (reason-only) partial 0.214 → 0.357 |
+| — | `CAUSAL_DEMOTE` 0.3 → 0.5 | **Rejected.** It gains exactly one case (partial 0.5747 → 0.585, strict unchanged at 21/49) while 0.4 changes nothing and 0.6 loses a different case. That is a knife edge fitted to one dev row, not a finding, so the SPEC value stands | kept 0.3 |
 | — | `SERVICE_PROMOTE_FRAC` 0.5/0.6/1.0 · `SERVICE_PROMOTE_MIN_PODS` 2/4 · `SERVICE_MEMBER_FRAC` 0.25/0.6 · `NODE_PROMOTE_WINDOW_S` 180/300 · `SIGNAL_MIN_FACTOR` 0.2/0.5 · `NODE_SINGLE_POD_FRAC` 0.3/0.8 · `SHARED_CALLEE_BONUS` 0/4 · `REASON_REST_WEIGHT` 1/4 · `CAUSAL_EARLIER_S` 60/180 | **All swept, none adopted**: every neighbour of the current value scores the same or worse. The parameters are at a local optimum rather than on a cliff, which is the more reassuring of the two for a different deployment | kept |
 
-## Engine failure taxonomy (dev-tune, at 0.539; the first thing wrong per case)
+## Engine failure taxonomy (dev-tune, measured at partial 0.539 / 18-49 strict; the first thing wrong per case)
 
 | bucket | cases | notes |
 |---|---|---|

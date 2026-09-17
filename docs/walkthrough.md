@@ -13,13 +13,18 @@ say" one.**
 | baseline-range / periodic guard | it has to be unusual *for that time of day*, not just unusual |
 | candidate promotion | when every pod of a service breaks together, the service is the suspect, not one pod |
 
+**Say which score you mean.** *Partial* = fraction of a case's scoring points; *strict* = the whole
+case right. Engine on dev-tune: **partial 0.5747, strict 21/49 = 42.9%**. Published state of the art
+(`docs/scoring.md`): **11.34% strict / 17.31% partial** over 335 cases on three systems — quote it as
+"not like-for-like" every time, or a professor judge will do it for you.
+
 ## The six things P1 must be able to explain cold
 
 1. **UTC+8.** Every time in the instructions and the answers is shop-local (UTC+8); the telemetry is
    epoch seconds. We parse the window with `tzinfo=UTC+8` and convert once. Proof it is right: all 55
    dev answer times land inside their window under that reading, and the answer component's metrics
    move at that moment, while the same reading ±8 h shows only noise. The starter heuristic reads the
-   window as UTC and looks at the wrong half-hour — that is part of why it scores 0.073.
+   window as UTC and looks at the wrong half-hour — that is part of why it scores 0.073 partial (1/49 strict on dev-tune).
 2. **Milliseconds vs seconds.** Traces are milliseconds and their `duration` is *microseconds*
    (verified: under that reading 99.9% of child spans start within their parent's span, and 100% of
    child durations are shorter than their parent's). Everything else is seconds. We divide once, at

@@ -5,6 +5,9 @@ whole. The working log with the full sweep detail is `docs/engine-tuning.md` (ca
 ever disagree). Every number here is dev-tune (49 cases) or a timing measurement — **no holdout
 result is quoted**, because the holdout is scored once, by Person 2, at CP4.
 
+**Two numbers, never mixed.** `score.py` reports a **partial** score — the fraction of a case's scoring points you got (one point per asked field per failure) — and **strict**, the share of cases where *every* point was right. The published baselines in `docs/scoring.md` are quoted both ways (RCA-Agent on Claude 3.5 Sonnet: **11.34% strict / 17.31% partial**, across all 335 OpenRCA cases on three systems, which is not like-for-like with our 49 Market cases). Every number below says which it is.
+
+
 ---
 
 ## What the engine does
@@ -142,15 +145,15 @@ Parameters were set before tuning (SPEC "Fixed parameters") and changed **only f
 results**. The holdout was never scored during tuning; the one thing it was used for is a timing pass
 over its instructions.
 
-| # | Change | Why | dev-tune |
+| # | Change | Why | dev-tune (partial / strict) |
 |---|---|---|---|
-| 0 | starting point at the CP3 merge | — | **0.539**, 18/49 solved |
-| 1 | `ONSET_SHIFT_BY_KIND` = −20 s for metric and disappearance onsets, 0 for trace buckets | A metric sample stamped T reports the minute *ending* at T, so the fault began in (T−60, T]. Chosen on **slack, not hit count**: −20 s and −30 s both put 25/38 time answers inside the 60 s tolerance, but −30 leaves 5 of them within 5 s of the boundary against −20's 2 (median slack 38 s vs 28 s). The judged deployment samples on a different phase, so slack is worth more than the midpoint. +30 s scores 21/38 | 0.539 → **0.554**, 20/49 |
-| 2 | `EDGE_GAP_VOTES_RETRANS` — damage vs delay (§5) | 3/3 corruption cases show node TCP retransmissions, the latency case does not | 0.554 → **0.575**, 21/49 |
-| — | `CAUSAL_DEMOTE` 0.3 → 0.5 | **Rejected.** Gains exactly one case (0.585) while 0.4 changes nothing and 0.6 loses a different one — a knife edge fitted to one row | kept 0.3 |
+| 0 | starting point at the CP3 merge | — | **0.539 partial**, 18/49 strict |
+| 1 | `ONSET_SHIFT_BY_KIND` = −20 s for metric and disappearance onsets, 0 for trace buckets | A metric sample stamped T reports the minute *ending* at T, so the fault began in (T−60, T]. Chosen on **slack, not hit count**: −20 s and −30 s both put 25/38 time answers inside the 60 s tolerance, but −30 leaves 5 of them within 5 s of the boundary against −20's 2 (median slack 38 s vs 28 s). The judged deployment samples on a different phase, so slack is worth more than the midpoint. +30 s scores 21/38 | 0.539 → **0.554 partial**, 20/49 strict |
+| 2 | `EDGE_GAP_VOTES_RETRANS` — damage vs delay (§5) | 3/3 corruption cases show node TCP retransmissions, the latency case does not | 0.554 → **0.5747 partial**, 21/49 strict (42.9%) |
+| — | `CAUSAL_DEMOTE` 0.3 → 0.5 | **Rejected.** Gains exactly one case (partial 0.585, strict unchanged) while 0.4 changes nothing and 0.6 loses a different one — a knife edge fitted to one row | kept 0.3 |
 | — | service/node promotion thresholds, `SIGNAL_MIN_FACTOR`, `SHARED_CALLEE_BONUS`, `REASON_REST_WEIGHT`, `CAUSAL_EARLIER_S`, `NODE_SINGLE_POD_FRAC` (2 values each) | **All swept, none adopted:** every neighbour of the current value scores the same or worse, so the engine sits at a local optimum rather than on a cliff — the more reassuring of the two for a different deployment | kept |
 
-## Engine failure taxonomy (dev-tune, measured at 0.539)
+## Engine failure taxonomy (dev-tune, measured at partial 0.539 / 18-49 strict)
 
 | bucket | cases | detail |
 |---|---|---|
@@ -177,7 +180,7 @@ Stated rather than guessed at:
 
 ## Honest caveats
 
-- Dev-tune's 0.575 is **optimistic by construction**: every change above was chosen by looking at
+- Dev-tune's **partial 0.5747 / strict 42.9%** is **optimistic by construction**: every change above was chosen by looking at
   dev-tune failures. The holdout number is the honest one.
 - **n = 21 on the holdout**, so one case is worth ~0.048 of the mean and differences under ~0.1
   between configurations are noise. That is what the repeats are for.

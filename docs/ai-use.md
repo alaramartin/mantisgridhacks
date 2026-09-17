@@ -1,7 +1,7 @@
 # AI use log (ORIGIN)
 
 Running log for the README's AI-disclosure section. Updated as we go; Person 2 owns it.
-Last updated: 2026-09-17, Phase 1.
+Last updated: 2026-09-17, after Checkpoint 4.
 
 ## Models the product uses
 
@@ -29,7 +29,7 @@ LangChain, no agent framework, no tool-calling loop. Dependencies stay
 
 | Person | Assistant | What it was used for |
 |---|---|---|
-| Person 1 | _(fill in)_ | data loading, signals, candidate engine |
+| Person 1 | Claude Code (Claude Opus 5) | data traps, window loader, signals, candidate engine, facts, figures, docs |
 | Person 2 | Claude Code (Claude Opus 5) | agent entry point, routing, eval harness, docs |
 
 All AI-generated code was read and edited by a human before commit; the team is
@@ -44,15 +44,17 @@ draft; "team-written" means a human typed it.
 |---|---|---|
 | `run.py`, `cost.py`, `score.py`, `agents/heuristic.py`, `agents/routed.py`, `scripts/validate_submission.py` | — | **MantisGrid starter, unmodified** (see `ATTRIBUTION.md`; `run.py`'s default `--agent` is the one edit) |
 | `llm.py` | P2 | **MantisGrid starter, patched**: `_once()` now falls back to `message.reasoning` (see `ATTRIBUTION.md`) |
-| `origin/contract.py`, `origin/config.py` | P1 | team-written (typed from PLAN.md §1–§3) |
-| `origin/case.py`, `origin/timeslice.py`, `origin/load.py`, `origin/signals.py`, `origin/candidates.py`, `origin/facts.py`, `origin/engine.py` | P1 | _(fill in)_ |
+| `origin/contract.py`, `origin/config.py` | P1 | team-written (typed from PLAN.md §1–§3); the parameter values in `config.py` were then tuned on dev-tune, each change logged |
+| `scripts/make_figures.py`, `docs/figures/*` | P1 | AI-generated, human-reviewed; plotted from real engine output, matplotlib is not a runtime dependency |
+| `eval/verify_traps.py`, `docs/data-notes.md`, `docs/engine-tuning.md`, `docs/engine-provenance.md`, `docs/walkthrough.md`, `docs/report-engine-sections.md` | P1 | AI-drafted from measured numbers, human-directed |
+| `origin/case.py`, `origin/timeslice.py`, `origin/load.py`, `origin/signals.py`, `origin/candidates.py`, `origin/facts.py`, `origin/engine.py` | P1 | AI-generated from the PLAN spec, then **substantially reshaped by measurement**: the rules that differ from the plan (the two anomaly guards, service candidates, the node-is-a-symptom rule, magnitude rules, damage-vs-delay, the onset shift) were derived by reading real dev-tune output and are logged in `docs/engine-tuning.md` with per-method sources in `docs/engine-provenance.md`. Human-directed and reviewed |
 | `origin/anomaly.py` | P2 | AI-generated from the PLAN pseudocode, human-reviewed |
 | `origin/fixture.py` | P2 | AI-generated placeholder, numbers chosen by the team from `docs/data-notes.md` |
 | `origin/router.py`, `origin/validate.py`, `origin/evidence.py` | P2 | AI-generated from the PLAN spec, human-reviewed |
 | `agents/origin.py` | P2 | AI-generated from the PLAN skeleton, human-reviewed |
 | `eval/split.py` | P2 | AI-generated, human-reviewed |
 | `eval/run_eval.py` | P2 | AI-generated, human-reviewed |
-| `eval/summarize.py` | P2 | _(fill in)_ |
+| `eval/summarize.py` | P2 | AI-generated, human-reviewed |
 | `REPORT.md`, `README.md`, `docs/model-findings.md`, `docs/ai-use.md` | P2 | AI-drafted from measured numbers, human-edited |
 
 ## Data
