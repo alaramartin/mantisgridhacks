@@ -51,10 +51,12 @@ CONFIGS: dict[str, dict] = {
     "routed":        {"agent": "agents.origin", "env": {"ORIGIN_MODE": "routed"}},
 }
 
-PER_CASE_COLS = ["config", "split", "repeat", "row_id", "task_index", "score",
-                 "dollars", "wall_s", "route", "confidence", "n_failures"]
+PER_CASE_COLS = ["config", "split", "repeat", "row_id", "task_index", "difficulty",
+                 "score", "dollars", "wall_s", "tokens_in", "tokens_out",
+                 "route", "confidence", "n_failures", "passed", "failed"]
 RUN_COLS = ["config", "split", "repeat", "n", "mean_score", "fully_solved",
-            "dollars_mean", "s_per_case_mean", "s_per_case_max", "wall_total_s",
+            "dollars_mean", "s_per_case_mean", "s_per_case_max",
+            "tokens_in_mean", "tokens_out_mean", "wall_total_s",
             "git_sha", "timestamp"]
 
 
@@ -152,22 +154,50 @@ def case_seconds(usage_rec: dict, trace_rec: dict) -> float:
     return wall
 
 
-def append(path: Path, rows: list[dict], cols: list[str]) -> None:
+def upsert(path: Path, rows: list[dict], cols: list[str]) -> None:
+    """Replace any existing rows for this (config, split, repeat), then append.
+
+    A blind append meant re-collecting a run left the old rows beside the new ones
+    and every mean was quietly wrong.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    df = pd.DataFrame(rows, columns=cols)
-    df.to_csv(path, mode="a", header=not path.exists(), index=False)
+    fresh = pd.DataFrame(rows, columns=cols)
+    if path.exists():
+        # Configs are run in parallel terminals (they are independent processes),
+        # so two of them can land here at once. A half-written file must not kill a
+        # run that has already paid for its API calls -- every row is re-derivable
+        # from out/ with --collect-only, so on a bad read we just write our own.
+        try:
+            old = pd.read_csv(path)
+        except Exception:
+            old = pd.DataFrame(columns=cols)
+        if list(old.columns) == cols and len(old):
+            key = ["config", "split", "repeat"]
+            tags = set(map(tuple, fresh[key].drop_duplicates().to_numpy().tolist()))
+            keep = [t not in tags for t in map(tuple, old[key].to_numpy().tolist())]
+            fresh = pd.concat([old[keep], fresh], ignore_index=True)
+        elif len(old):
+            raise SystemExit(f"{path} has columns {list(old.columns)} but this run "
+                             f"writes {cols}. Move it aside and re-collect.")
+    tmp = path.with_suffix(".csv.tmp")          # atomic: never leave a torn file
+    fresh.to_csv(tmp, index=False)
+    os.replace(tmp, path)
 
 
-def one_run(config: str, split: str, repeat: int, limit: int) -> dict:
+def one_run(config: str, split: str, repeat: int, limit: int,
+            collect_only: bool = False) -> dict:
     cfg = CONFIGS[config]
     split_csv = SPLITS / f"{split}.csv"
     if not split_csv.exists():
         raise SystemExit(f"no split at {split_csv} -- run eval/split.py first")
     out = ROOT / "out" / "eval" / config / split / f"r{repeat}"
-    for stale in ("predictions.csv", "usage.jsonl", "origin_trace.jsonl"):
-        (out / stale).unlink(missing_ok=True)   # appended files must not accumulate
+    if not collect_only:
+        for stale in ("predictions.csv", "usage.jsonl", "origin_trace.jsonl"):
+            (out / stale).unlink(missing_ok=True)   # appended files must not accumulate
 
-    wall_total = run_agent(cfg, split_csv, out, limit)
+    wall_total = 0.0 if collect_only else run_agent(cfg, split_csv, out, limit)
+    if collect_only and not (out / "predictions.csv").exists():
+        raise SystemExit(f"--collect-only but nothing at {out}")
     scored = score_run(out, split_csv)
     usage = read_usage(out)
     trace = read_trace(out)
@@ -182,12 +212,17 @@ def one_run(config: str, split: str, repeat: int, limit: int) -> dict:
         rows.append({
             "config": config, "split": split, "repeat": repeat, "row_id": rid,
             "task_index": r.task_index, "score": float(r.score),
+            "difficulty": r.difficulty,
             "dollars": round(dollars(u.get("models", {})), 6),
             "wall_s": round(case_seconds(u, t), 2),
+            "tokens_in": int(u.get("prompt_tokens", 0) or 0),
+            "tokens_out": int(u.get("completion_tokens", 0) or 0),
             "route": t.get("route", ""), "confidence": t.get("confidence", ""),
             "n_failures": t.get("n_failures", ""),
+            "passed": r.passed if isinstance(r.passed, str) else "",
+            "failed": r.failed if isinstance(r.failed, str) else "",
         })
-    append(RESULTS / "per_case.csv", rows, PER_CASE_COLS)
+    upsert(RESULTS / "per_case.csv", rows, PER_CASE_COLS)
 
     d = pd.DataFrame(rows)
     summary = {
@@ -197,11 +232,13 @@ def one_run(config: str, split: str, repeat: int, limit: int) -> dict:
         "dollars_mean": round(d.dollars.mean(), 6),
         "s_per_case_mean": round(d.wall_s.mean(), 2),
         "s_per_case_max": round(d.wall_s.max(), 2),
+        "tokens_in_mean": int(d.tokens_in.mean()),
+        "tokens_out_mean": int(d.tokens_out.mean()),
         "wall_total_s": round(wall_total, 1),
         "git_sha": git_sha(),
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
-    append(RESULTS / "runs.csv", [summary], RUN_COLS)
+    upsert(RESULTS / "runs.csv", [summary], RUN_COLS)
     return summary
 
 
@@ -211,6 +248,9 @@ def main() -> None:
     p.add_argument("--split", required=True, choices=["holdout", "dev_tune"])
     p.add_argument("--repeat", type=int, default=1, help="run it R times (models vary)")
     p.add_argument("--limit", type=int, default=0, help="first N cases of the split")
+    p.add_argument("--collect-only", action="store_true",
+                   help="re-derive the results rows from an existing out/ dir, "
+                        "without re-running the agent (or paying for it again)")
     args = p.parse_args()
 
     load_dotenv()
@@ -230,7 +270,7 @@ def main() -> None:
         raise SystemExit("refusing to record a run with ORIGIN_FIXTURE=1 -- the "
                          "fixture is not the engine and its score means nothing")
 
-    summaries = [one_run(args.config, args.split, r, args.limit)
+    summaries = [one_run(args.config, args.split, r, args.limit, args.collect_only)
                  for r in range(1, args.repeat + 1)]
 
     print("\n" + " ".join(f"{c}" for c in RUN_COLS))

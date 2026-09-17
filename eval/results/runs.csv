@@ -1,3 +1,4 @@
-config,split,repeat,n,mean_score,fully_solved,dollars_mean,s_per_case_mean,s_per_case_max,wall_total_s,git_sha,timestamp
-heuristic,dev_tune,1,49,0.0561,1,0.0,1.46,5.94,72.8,22bebd0,2026-09-17T17:44:45+00:00
-engine,dev_tune,1,49,0.539,18,0.0,3.73,16.01,183.7,de8c215,2026-09-17T18:28:47+00:00
+config,split,repeat,n,mean_score,fully_solved,dollars_mean,s_per_case_mean,s_per_case_max,tokens_in_mean,tokens_out_mean,wall_total_s,git_sha,timestamp
+heuristic,dev_tune,1,49,0.0561,1,0.0,1.46,5.94,0,0,0.0,7940a2c,2026-09-17T19:04:33+00:00
+heuristic,holdout,1,21,0.111,1,0.0,1.74,6.45,0,0,0.0,7940a2c,2026-09-17T19:04:34+00:00
+engine,holdout,1,21,0.5119,7,0.0,8.78,28.07,0,0,0.0,7940a2c,2026-09-17T19:04:36+00:00
