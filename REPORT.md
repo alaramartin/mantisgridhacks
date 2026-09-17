@@ -5,9 +5,10 @@ the numbers are, where it fails, and what we would change. Numbers are produced 
 own evaluator (`score.py`, vendored unchanged) through our harness (`eval/run_eval.py`); every run is
 appended to `eval/results/runs.csv` with its git SHA.
 
-> **P2: the sections marked `⟨P2⟩` are yours — the holdout tables, the routed-vs-single comparison,
-> routing breakdown, calibration and the cost/time numbers. Everything else is written. Delete this
-> block before submitting.**
+**Shipped configuration: `routed-duel`** — the deterministic engine plus one cheap GLM call,
+restricted to the engine's top two candidates and made only when the engine is genuinely torn. The
+evidence for that choice is in "Routing" below. `ORIGIN_MODE=engine` and `ORIGIN_NO_DUEL=1` reproduce
+the other configurations in this report.
 
 **Two scores, never mixed.** **Partial** = the fraction of a case's scoring points (one per asked
 field per failure). **Strict** = the share of cases where *every* point was right. `docs/scoring.md`
@@ -209,19 +210,34 @@ points. What we can say: on the cases we can see, 33% strict is roughly three ti
 by the benchmark's own evaluator. Against the starter baseline on those same 21 cases: **0.524 vs
 0.111 partial, 7/21 vs 1/21 strict.**
 
-## Cost and time ⟨P2⟩
+## Cost and time
 
-_TODO P2 for the per-config table._ Measured facts already in hand, from the judged path:
+**Per config, on the holdout** (21 cases; `$/case` is metered from `usage.jsonl` and priced at
+`docs/models.md`):
+
+| config | $/case | 20-case run | s/case mean | tokens in/out |
+|---|---|---|---|---|
+| **`routed-duel` (shipped)** | **$0.000063** | **$0.0013** | 6.6 | 734 / 37 |
+| `routed` (full escalation) | $0.007280 | $0.146 | 12.6 | 7,492 / 332 |
+| `engine` | $0.000000 | $0.00 | 4.4 | 0 / 0 |
+| `heuristic` | $0.000000 | $0.00 | 0.6 | 0 / 0 |
+
+**In the judged container** (2 CPU / 8 GB, exactly the `docker run` from `docs/submission.md`), for
+the unrestricted `routed` configuration we measured before switching the default:
 
 | Measurement | Value | Limit |
 |---|---|---|
-| 20 cases, routed, in the container at 2 CPU / 8 GB | **5 min 54 s** (17.6 s/case mean, 37.7 s max) | 20 min |
-| Cost, same run | **$0.126** total, $0.0063/case (max $0.0112) | $25/run, $3/case |
+| 20 cases end to end | **5 min 54 s** (17.6 s/case mean, 37.7 s max) | 20 min |
+| Cost, same run | **$0.126** total ($0.0063/case, max $0.0112) | $25/run, $3/case |
 | Split of that spend | GLM-5.2 **95%**, GLM-4.7-Flash 5% | — |
-| Tokens | 7,451 in / 380 out per case | vs 474 K for a "typical case" that reads the window |
 | Peak memory | 1.74 GiB | 8 GB |
 | Cases over our own 45 s soft deadline | 0 | — |
-| Engine alone, per case | 3.8 s, $0.00 | — |
+
+The shipped config is strictly cheaper and faster than that measurement on every axis — it makes one
+Flash call on a minority of cases instead of a Flash plus a GLM-5.2 call on most of them — so the
+20-minute and $25 limits have a very large margin. **Routing that saves money and time without losing
+accuracy** was the stated goal: against `routed`, the shipped config is **115× cheaper per case, ~2×
+faster, and 0.107 partial more accurate**.
 
 The token number is the point of the architecture: the model never sees telemetry, only a fact sheet
 of ≤ 40 facts, so we spend ~1.6% of the input tokens a context-stuffing agent would.
