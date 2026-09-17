@@ -11,7 +11,7 @@ from collections import defaultdict
 
 from origin.config import (CAUSAL_DEMOTE, CAUSAL_EARLIER_S, MAX_CANDIDATES, MULTI_FAILURE_SEP_S,
                            NODE_PROMOTE_MEMBER_FRAC, NODE_PROMOTE_MIN_PODS, NODE_PROMOTE_WINDOW_S,
-                           NODE_SINGLE_POD_FRAC, ONSET_MIN_FRAC, ONSET_SHIFT_S,
+                           NODE_SINGLE_POD_FRAC, ONSET_MIN_FRAC, ONSET_SHIFT_BY_KIND, ONSET_SHIFT_S,
                            REASON_REST_WEIGHT, SERVICE_MEMBER_FRAC, SERVICE_PROMOTE_FRAC,
                            SERVICE_PROMOTE_MIN_PODS, SHARED_CALLEE_BONUS, SIGNAL_MIN_FACTOR)
 from origin.contract import Candidate, Case, Signal, fmt_ts, legal_reasons
@@ -175,9 +175,10 @@ def answer_time(c: Candidate, reason: str, signals: dict[str, Signal], case: Cas
               and signals[i].onset_ts is not None]
     if voting:
         best = max(voting, key=lambda s: s.score * s.reason_votes[reason])
-        return best.onset_ts + ONSET_SHIFT_S, best.id
+        shift = ONSET_SHIFT_S + ONSET_SHIFT_BY_KIND.get(best.kind, 0.0)
+        return max(case.lo_ts, best.onset_ts + shift), best.id
     if c.onset_ts is not None:
-        return c.onset_ts + ONSET_SHIFT_S, None
+        return max(case.lo_ts, c.onset_ts + ONSET_SHIFT_S), None
     return case.lo_ts, None
 
 

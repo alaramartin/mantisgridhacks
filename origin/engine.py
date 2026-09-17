@@ -15,6 +15,7 @@ import os
 import pickle
 import time
 import traceback
+from functools import lru_cache
 from pathlib import Path
 
 from origin.candidates import LEVEL_DEFAULT, engine_answers, rank
@@ -32,9 +33,24 @@ def _fallback_case(instruction: str) -> Case:
                 lo_ts=0.0, hi_ts=0.0, days=[], notes=["instruction could not be parsed"])
 
 
+_ENGINE_SRC = ("anomaly", "candidates", "case", "config", "engine", "facts", "load", "signals", "timeslice")
+
+
+@lru_cache(maxsize=1)
+def engine_fingerprint() -> str:
+    """A hash of the engine's own source. It goes into the ORIGIN_ENGINE_CACHE key so a pickled
+    Analysis is only reused by the code that produced it -- otherwise a parameter change is
+    silently invisible to the eval, which reads back yesterday's answers in milliseconds."""
+    h = hashlib.sha1()
+    for name in _ENGINE_SRC:
+        f = Path(__file__).with_name(f"{name}.py")
+        h.update(f.read_bytes() if f.exists() else b"")
+    return h.hexdigest()[:12]
+
+
 def analyze(instruction: str, dataset_dir: Path, deadline_ts: float | None = None) -> Analysis:
     cache_dir = os.environ.get("ORIGIN_ENGINE_CACHE")
-    key = hashlib.sha1(instruction.encode()).hexdigest()
+    key = hashlib.sha1(f"{engine_fingerprint()}:{instruction}".encode()).hexdigest()
     if cache_dir:
         path = Path(cache_dir) / f"{key}.pkl"
         if path.exists():

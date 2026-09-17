@@ -885,23 +885,27 @@ Work **only from dev-tune results** (`eval/results/engine_dev_tune_per_case.csv`
 from Person 2's harness). Never open holdout per-case results. Log every change
 in `REPORT.md` → "Tuning log" (what, why, dev-tune before → after).
 
-- [ ] **Failure taxonomy on dev-tune (by 1:00).** For every dev-tune case not
+- [x] **Failure taxonomy on dev-tune (by 1:00).** For every dev-tune case not
       fully solved, classify the first thing wrong, in this order: wrong count
       (should be impossible) · time off > 60 s · wrong level (node vs pod) ·
       symptom picked over cause (true component is a lower candidate) · true
       component not a candidate at all · wrong reason within the network group
       · wrong reason otherwise. Write the counts into `REPORT.md` → "Engine
       failure taxonomy (dev-tune)". To look at a case: `python -m origin.engine --row <id>`.
-- [ ] **Fix the biggest bucket first (by 1:35).** Allowed levers, one at a time,
+- [x] **Fix the biggest bucket first (by 1:35).** Allowed levers, one at a time,
       each re-scored on dev-tune: `ONSET_SHIFT_S` (0 / −30 / −60),
       `REASON_RULES` patterns and weights, edge vote weights,
       `CAUSAL_DEMOTE`, `NODE_PROMOTE_*`, `SPIKE_MAX_SAMPLES`. **Not allowed:**
       anything naming a specific component, day or case.
-- [ ] **Speed (by 1:45).** Run the 21 holdout **instructions** (no scoring) through
+- [x] **Speed (by 1:45).** Run the 21 holdout **instructions** (no scoring) through
       `analyze` with timings and report mean / max seconds. Target mean < 15 s on a laptop
       (the judge's 2 CPUs are slower; Person 2 measures that in Docker).
       If over: cache per-day metric reads, skip `metric_service`, reduce edge signals to
       edges with ≥ 50 baseline calls.
+      > done, no change needed. **Holdout instructions (no scoring, timing only): mean 4.2 s, max 16.6 s**
+      > per case. dev-tune: mean 3.66 s, max 16.1 s. In the container, 20 routed cases took 5:54 (17.6 s/case
+      > mean) — the engine is ~20% of that, the rest is the two model calls. The 16 s maxima are all the
+      > one-off `log_service` day pass; `config.LOAD_LOGS = False` removes it (cut-order #1).
 
 ### 🛑 CHECKPOINT 4 — docker + final eval (1:45)
 
@@ -938,11 +942,18 @@ Print this to your human and stop:
 
 ## Phase 5 — Walkthrough, report, freeze (1:45–2:50)
 
-- [ ] **REPORT.md engine sections (by 2:05):** loading (files, methods, time),
+- [x] **REPORT.md engine sections (by 2:05):** loading (files, methods, time),
       signals (metrics, trace edges, disappearance), topology from names, causal
       filter, reason table, fixed parameters + tuning log, engine failure
       taxonomy, what the engine is blind to (e.g. `log_proxy`, mesh metrics,
       corruption vs retransmission).
+      > done → **`docs/report-engine-sections.md`**, paste-ready. Written as a separate file, not into
+      > `REPORT.md`, because Person 2 was drafting `REPORT.md` at the same time and two new copies of the
+      > same file is the one merge conflict the PLAN says to avoid. P2: paste it in, or `include` it.
+      > `docs/engine-tuning.md` stays the canonical working log if the two ever disagree.
+      > Also **`docs/walkthrough.md`**: P1's half of the mandatory CP4 walkthrough written out in the
+      > SPEC's plain-language register, the questions P2 should fire at P1, the questions P1 will ask P2,
+      > and the demo case with its grep.
 - [ ] **2:15 freeze.** Bug fixes only.
 - [ ] **2:15–2:40 presentation:** you drive the terminal for the live case and
       the grep; Person 2 narrates the eval.
@@ -1867,6 +1878,21 @@ Update this on `main` after each merge so the humans can `/clear` and resume.
     no per-case result was opened. Score the holdout once, with `eval/run_eval.py`, at CP4.**
   - Holdout table (routed / single-strong / single-flash / engine / heuristic):
   - Docker 20-case time and peak memory:
-  - Demo case row_id:
-  - Walkthrough done (both):
+  - Demo case row_id: **38** (dev-tune, not holdout), committed as `eval/splits/demo.csv`. `task_7`, so all
+    three fields are asked, and the routed agent gets all three right
+    (`node-6 / node disk write I/O consumption / 2022-03-21 03:39:00` vs the answer's `03:39:14`).
+    It **escalates to the strong model**, so the live run shows the whole pipeline in ~16 s; its confidence is
+    honestly **Low** (top two suspects 7% apart) while still being right, which is the calibration story in one
+    case; and one of its facts greps in a single line
+    (`awk -F, '$1==1647805140 && $2=="node-6" && $3=="system.io.w_s"' … → 1647805140,node-6,system.io.w_s,502.5`).
+    **Backup if the API is slow on the day: row 25** — also `task_7` with all three right, answered by the
+    **gate with no model call at all** in 2.5 s at High confidence (zero tokens: the "only pay when ambiguous"
+    pitch made concrete).
+  - **Finding for P2's holdout runs:** on row 0 the **engine alone is right** and the **routed agent is wrong** —
+    the strong model overrode the engine at margin 0.06 and scored 0, and the validator allowed it because the
+    pick was a legal candidate with a legal reason. Worth its own accuracy row: if "model overruled the engine
+    below `ESCALATE_MARGIN`" is a net loss on the holdout, the fix is a validator rule, not a prompt change
+    (the confidence rule already marks exactly those cases Low).
+  - Walkthrough done (both): **P1's half is written up in `docs/walkthrough.md`** with questions both ways;
+    the out-loud pass still needs both humans.
 - [ ] 2:15 freeze · recorded · README · submitted
