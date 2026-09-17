@@ -321,3 +321,28 @@ system.udp.connect.num
 - task_index counts: {'task_1': 12, 'task_2': 10, 'task_3': 8, 'task_4': 7, 'task_5': 10, 'task_6': 12, 'task_7': 11}
 
 _verify_traps.py ran in 13 s_
+
+## Phase 3 findings (engine build, dev-tune only)
+
+- **Every case window starts at :00 or :30, and the shop runs jobs on that boundary.** `metric_node`
+  `system.net.bytes_sent` / `tcp.out_segs` and `system.disk.used`, and pod
+  `container_network_receive_MB.eth0`, jump at exactly the window start in many cases and were the top
+  "anomaly" before the periodic guard (same clock offset 30 / 60 min earlier, `config.PERIODIC_LAGS_S`).
+  Answer times *can* be 0.2 min into the window (min over 38 dev-tune answer times), so the guard has to be
+  "was this normal at the same time of day", not "ignore the window start".
+- **Fault signature of container faults:** whatever is injected, `container_cpu_*`, `container_memory_*`,
+  `container_threads` and `container_file_descriptors` all rise together (a stress process starts in the
+  container). What separates them is absolute size: read I/O faults push `container_fs_reads_MB./dev/vda`
+  peaks to 1.5e4 / 4.3e3 (vs < 50 in any other fault), write I/O `container_fs_writes_MB` to 3.6e3 (vs
+  < 0.1), CPU faults `container_cpu_usage_seconds` to 12–28 (vs 0.5–9.5). Hence `config.MAGNITUDE_RULES`.
+- **`container process termination` is not visible in this bundle's telemetry** for the two dev-tune cases
+  that have it (rows 31, 32): no metric series stop or gap, no `container_start_time_seconds` change, no
+  drop in per-pod span counts, and `log_service.csv` has no error lines in those windows. The
+  disappearance rule is implemented and unit-tested, but it fires on no dev case. 3/55 dev reasons are
+  process termination; we say so in REPORT.md rather than guessing.
+- **Node metrics follow their pods.** A single pod's read-I/O storm raises its node's `system.io.*` and
+  `system.cpu.iowait` to capped z. The engine therefore treats a node with exactly one anomalous pod as
+  that pod's symptom (`config.NODE_SINGLE_POD_FRAC`).
+- **Answer times lag the metric onset.** Metrics are 60 s apart, so a fault at 07:46:11 first shows in the
+  07:47 or 07:48 sample; the evaluator's tolerance is 60 s. Trace-edge signals resolve to 30 s.
+  `ONSET_SHIFT_S` is still 0 — it is the first Phase 4 lever (0 / −30 / −60).

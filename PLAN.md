@@ -674,7 +674,7 @@ After CP2: delete `tests/_p1_score_stub.py`; import `origin.anomaly.score_series
 
 ## Phase 3 — Signals, candidates, reasons, facts, engine (11:30–12:45, hard stop 12:45; lunch at the keyboard 12:00–12:30)
 
-- [ ] **Reason table (by 11:45).** From the kpi_name lists in `docs/data-notes.md`,
+- [x] **Reason table (by 11:45).** From the kpi_name lists in `docs/data-notes.md`,
       fill `REASON_RULES` in `origin/config.py`: `(level, regex, reason, weight)`,
       **first matching rule wins**, regex matched case-insensitively against the
       raw `kpi_name`. Start from these patterns and adjust them to the real names.
@@ -702,7 +702,16 @@ After CP2: delete `tests/_p1_score_stub.py`; import `origin.anomaly.score_series
   `edge_errors` → callee gets `{"container packet loss": 0.6, "container network packet corruption": 0.4,
   "container network packet retransmission": 0.4}`; `disappear` → `{"container process termination": 1.5}`.
   A KPI that matches no rule gets no vote but still counts as support.
-- [ ] **`origin/signals.py` (by 12:05).**
+      > done, **changed/added** (all tuned on dev-tune only, logged for REPORT.md):
+      > `metric_node` names are `system.*`, so the node regexes are anchored on them; `container_spec_*`,
+      > `*_limit`, `threads_max` and `ulimits` are configuration, not load, and vote for nothing.
+      > Three **additions** beyond the table: (1) a signal only votes if it moved the way that means *more*
+      > load (`free|usable|avail|idle` down, everything else up) — a falling CPU load is not `container CPU load`;
+      > (2) `MAGNITUDE_RULES`: every container fault drags CPU, memory, threads and fds up together, so the
+      > injected one is picked by absolute size (`container_fs_reads_MB`/`writes_MB` peak ≥ 1000, or
+      > `container_cpu_usage_seconds` peak ≥ 10), which is what separates read/write I/O from CPU on dev-tune;
+      > (3) `metric_service` `mrt`/`sr` vote weakly for latency / packet loss.
+- [x] **`origin/signals.py` (by 12:05).**
 
   ```python
   def build_signals(w: Window, deadline_ts: float | None = None) -> dict[str, Signal]
@@ -726,7 +735,18 @@ After CP2: delete `tests/_p1_score_stub.py`; import `origin.anomaly.score_series
   - Reason votes per the table (level of the component).
   - Assign IDs `F1…Fn` in order of descending score (stable: ties by onset, then cmdb_id).
   - Respect `deadline_ts`: if near, stop adding edge signals and note it.
-- [ ] **`origin/candidates.py` (by 12:25).**
+      > done. All series scored in **0.6–0.8 s** per case. **Added two guards** (see the pre-CP2 finding above —
+      > without them 92–181 "anomalies" per case): a breach must also leave the baseline's own [min, max] in the
+      > anomaly's direction, and it must **not** have happened at the same clock offset 30 or 60 min earlier
+      > (`PERIODIC_LAGS_S`) — the shop runs half-hourly/hourly jobs that spike node network and `disk.used` at
+      > exactly :00/:30, which is where every case window starts. The onset is recomputed as the first
+      > k-run that passes both guards, so periodic noise can't move the answer time.
+      > Disappearance is **one signal per pod** (the series with the longest gap, carrying the count of series
+      > that went missing) so 60 dead KPIs can't look like 60 independent facts. `pod_errors` = per-pod span
+      > error rate per 30 s bucket. **Kept `score_series` as Person 2's contract**: `origin/anomaly.py` is not
+      > merged yet, so `signals.py` falls back to `tests/_p1_score_stub.py` (marked PLACEHOLDER) — delete that
+      > import once Person 2's module is on `main`.
+- [x] **`origin/candidates.py` (by 12:25).**
 
   ```python
   def rank(w: Window, signals: dict[str, Signal]) -> tuple[list[Candidate], float]
@@ -758,7 +778,19 @@ After CP2: delete `tests/_p1_score_stub.py`; import `origin.anomaly.score_series
     `datetime = fmt_ts(onset of the top signal supporting the chosen reason + ONSET_SHIFT_S)`
     (fallback: window start), `component`, `reason = reasons[0]`, `cid`, `signal_ids`.
     Sort answers by datetime.
-- [ ] **`origin/facts.py` (by 12:35).**
+      > done, **with three additions** (all from dev-tune):
+      > (1) **Service candidates** (24/54 dev answer components are bare services, CP1): a service is the suspect
+      > when ≥ `SERVICE_PROMOTE_MIN_PODS` (3) and ≥ 75% of its pods went wrong within 120 s of each other,
+      > counting only pods scoring ≥ 40% of the strongest — one loud pod does not promote its service.
+      > (2) **A node with exactly one anomalous pod is demoted as that pod's symptom** ("what node-6's metrics
+      > show is that pod's own load"); a pod's own read-I/O storm otherwise wins the node the top spot. Node
+      > promotion likewise ignores bystander pods (< 50% of the strongest).
+      > (3) Candidate score uses `score × the signal's own reason weight` (floor 0.3, cap 1), so a noisy KPI that
+      > votes for nothing — `container_network_receive_MB`, `system.net.*` — cannot make a component top suspect.
+      > Reason score = best vote + 2·log(1 + other votes for it), not the sum, so one family with many KPIs
+      > doesn't outvote the injected one. Candidate onset = earliest onset among signals ≥ 50% of the
+      > candidate's best score (a weak early signal was dragging service onsets out of the promotion window).
+- [x] **`origin/facts.py` (by 12:35).**
   - `render_fact(sig)` → one bullet, only raw or clearly labelled derived numbers:
     `- F3 · metric_container.csv · node-5.shippingservice-1 · container_fs_reads./dev/vda — baseline median 2.1 (60 samples, 08:00–09:00 UTC+8); first outside normal at 2022-03-20 09:09:00 (ts 1647738540), value 47.02; peak 51.3 at 2022-03-20 09:12:00 (ts 1647738720); score 18.3 (how many normal ranges away)`.
     Edge facts: `F7 · trace_span.csv · frontend-0 → shippingservice-1 · call gap ms — baseline median 3.1 ms per 30 s bucket (…); bucket starting 2022-03-20 09:09:00 (ts …ms 1647738540000) median 41.0 ms; …`
@@ -770,7 +802,12 @@ After CP2: delete `tests/_p1_score_stub.py`; import `origin.anomaly.score_series
     demoted → `"{comp} — {demoted_by}."`; later onset → `"{comp} — first went wrong at {t} ({Fx}), {m} min after {chosen}."`;
     lower score → `"{comp} — weaker: score {s:.1f} vs {s1:.1f} ({Fx})."`; if no node candidate for the chosen
     pod's node → `"{node} — no node-level metric left its normal range, so the node layer isn't the cause."`
-- [ ] **`origin/engine.py` + smoke run (by 12:45).** `analyze(instruction, dataset_dir, deadline_ts)`:
+      > done. Raw values are printed as the file holds them and, when long, **cut (never rounded) to 6
+      > significant digits with a trailing `…`**, so the printed digits stay a prefix of the CSV text and a
+      > judge's grep matches (`tests/test_facts.py` asserts that on real values). Trace facts print the epoch in
+      > ms as well. `render_ruled_out` reads `pod_node` from `Analysis.window_stats["pod_node"]` (engine puts it
+      > there) for the "no node-level metric moved" sentence.
+- [x] **`origin/engine.py` + smoke run (by 12:45).** `analyze(instruction, dataset_dir, deadline_ts)`:
       parse → load → signals → rank → engine_answers, fill `timings`, catch
       exceptions per stage, and **always return an Analysis** (on failure:
       empty signals, `engine_answers` from a level-default guess with the window
@@ -778,6 +815,34 @@ After CP2: delete `tests/_p1_score_stub.py`; import `origin.anomaly.score_series
       Analysis by `sha1(instruction)` for the eval (default off). Also:
       `python -m origin.engine --row <row_id>` prints the candidates table,
       the engine answers and the rendered facts for one dev case.
+      > done. Every stage is caught and noted; a parse failure still answers (level default + window start).
+      > CLI: `python -m origin.engine --row <id>` (candidates, answers, facts, ruled out, notes) and
+      > `--split dev_tune --score` (scores with the vendored `score.evaluate`, writes
+      > `out/engine/engine_dev_tune_per_case.csv`). `--score` **refuses any split but dev_tune** so the holdout
+      > stays closed (PLAN rule 7). `ORIGIN_ENGINE_CACHE=<dir>` pickles by sha1(instruction).
+      > Also added **`agents/p1_engine_only.py`** — P1's dev harness so the engine can run through `run.py`,
+      > `make validate` and `make docker` before Person 2's agent lands (and SPEC emergency step 4's
+      > engine-only fallback). Person 2 owns `agents/origin.py`; nothing in P2's files was touched.
+      > **Engine-only on dev-tune: mean 0.539, 18/49 fully solved, 3.5 s/case mean (16 s max, the first case of
+      > a day pays the one-off log pass)** vs the heuristic's 0.073 on all 70.
+
+> **P1 notes for Person 2 at CP3 (read before merging).**
+> 1. `origin/anomaly.py` is still missing on every branch, so `origin/signals.py` imports
+>    `tests/_p1_score_stub.py` as a **PLACEHOLDER** (`grep -rn PLACEHOLDER origin agents eval tests`). When your
+>    `score_series` lands, the fallback import is deleted — no other change. Two things the stub taught us on real
+>    data, worth having in yours: don't call a breach anomalous if it stays inside the baseline's own [min, max],
+>    and the zero-baseline rule needs the same treatment (26/92 "anomalies" were zero-baseline series). The engine
+>    applies both guards itself on top of whatever `score_series` returns, so it is safe either way.
+> 2. **Contract addition (backward compatible):** `Analysis.window_stats["pod_node"]` now carries the pod → node
+>    map (`origin/facts.render_ruled_out` needs it). Nothing was removed.
+> 3. `agents/p1_engine_only.py` is P1's dev harness (engine only, no model calls) so the engine could be run
+>    through `run.py` and the official validator before your agent exists. It also renders the four evidence
+>    sections from the facts — reuse or replace as you like; `agents/origin.py` is yours.
+> 4. Engine numbers on dev-tune (49 cases): **mean 0.539, 18/49 fully solved, 3.5 s/case mean, 16.1 s max**
+>    (the first case of a telemetry day pays a one-off ~11 s `log_service` pass; `config.LOAD_LOGS = False`
+>    removes it and is cut-order #1 if Docker time is tight). Per task: t1 0.50 · t2 0.21 · t3 0.80 · t4 0.25 ·
+>    t5 0.75 · t6 0.56 · t7 0.65. Weakest are the **reason-only tasks (t2, t4)**: network-group reasons and
+>    process termination. `margin` is populated, so the gate and escalation conditions can be measured.
 
 ### 🛑 CHECKPOINT 3 — first end-to-end ORIGIN (12:45)
 
@@ -1656,8 +1721,76 @@ Update this on `main` after each merge so the humans can `/clear` and resume.
     alongside anything else** (it failed once during this phase, passed on re-run). P1's own
     gate measured 14.2 s cold on their machine. Not changed — it is P1's test and P1's
     threshold — but the margin is thin enough that the judged 2-CPU container may cross it.
-- [ ] Checkpoint 3 — first end-to-end ORIGIN (12:45) — **P2 side complete on `person2`, NOT merged
-      to main (human asked to hold).** Router, validator, confidence and evidence all land with tests:
+
+  **--- P1's merge results (CP3, on `main`) ---**
+
+  - **Engine-only on dev_tune: mean 0.539, 18/49 fully solved, 3.73 s/case (max 16.0 s)** vs the
+    heuristic's 0.073 on all 70 / 0.056 on dev_tune. By task: t1 0.500 · t2 0.214 · t3 0.800 ·
+    t4 0.250 · t5 0.750 · t6 0.556 · t7 0.645. By difficulty: easy 0.476 · middle 0.562 · hard 0.645.
+    Measured with P2's harness (`python -m eval.run_eval --config engine --split dev_tune`, in
+    `eval/results/runs.csv`). The weak spots are the **reason-only tasks (t2, t4)**: network-group
+    reasons, and `container process termination`, which is **invisible in this bundle's telemetry**
+    (see `docs/data-notes.md` → Phase 3 findings: no series stop, no restart, no error log lines in
+    either dev_tune case that has it). 3/55 dev reasons are process termination; we say so honestly.
+  - **Grep test passed, both ways.** `F2 · metric_node.csv · node-6 · system.cpu.iowait — … value 1.29
+    (ts 1647738480)` against
+    `awk -F, '$1==1647738480 && $2=="node-6" && $3=="system.cpu.iowait"' …/metric_node.csv`
+    → `1647738480,node-6,system.cpu.iowait,1.29`. Also automated for every metric fact of the answers
+    in `tests/test_engine.py::test_grep_metric_facts_against_raw_csv`.
+  - `make validate` with `agents.origin`: **passes, 0 warnings.** `make dev N=3` writes 3 evidence
+    files and `origin_trace.jsonl`; 2/3 solved, and row 0 is exactly right
+    (`shippingservice-1 / container read I/O load / 2022-03-20 09:09:00`).
+  - **P1's integration fixes at the merge** (P2: these touch your files, please glance):
+    `origin/signals.py` imports `origin.anomaly.score_series` and **`tests/_p1_score_stub.py` is
+    deleted**. For zero-baseline series, signals now recompute `peak_ts`/`peak_value` as the largest
+    departure: `score_series` ranks those by z, which ties at `Z_CAP`, so its "peak" is the *first*
+    breach — correct for scoring, but `config.MAGNITUDE_RULES` (what separates read/write I/O from CPU)
+    reads `peak_value`, and facts print it as the peak. Same rows, same file, different sample.
+    Two assertions in `tests/test_evidence.py` expected `cmdb_id=` / `epoch=` / `2.7e+07`;
+    `origin/facts.py` renders the format PLAN §Phase 3 specifies, so they now check the same four
+    things in that spelling (a raw value is printed as the file holds it, cut never rounded).
+  - **`tests/test_load.py` cold-load ceiling: 30 s → 120 s.** P2 was right not to touch it — it was a
+    bad assertion, not a slow machine. It is a cold load including the one-off `log_service` day pass
+    (14 s on P1's Mac, 35 s on P2's box); the number that actually binds is measured in Docker.
+    `config.LOAD_LOGS = False` removes that pass entirely and is cut-order #1.
+  - Accepted from P2, no P1 action: the §4 `heuristic_fallback` route value, the thinking-OFF strong
+    tier, and the ASCII fold of evidence (`→` renders as `->`).
+  - **Docker, measured early on P1's Mac (engine-only, so CP4 still needs the key):** image 466 MB,
+    builds in 20 s; 2 cases pass at `--cpus 2 --memory 8g`; **20 cases in 1 min 27 s** (4.3 s/case
+    mean, 15.3 s max), **peak memory 1.69 GiB of 7.65**, writes only `/out`, `data/` excluded from the
+    build context. So the engine's share of the 20-minute limit is ~1.5 min, leaving ~18 min for
+    routing — P2's ~21 s escalated case fits with room. P2's cold-load + escalation worry (≈51 s) does
+    not reproduce here: the cold case in Docker was 15.3 s, not 34.9 s.
+  - **Routed path verified live after the human added the key** (`set -a; . ./.env; set +a` — nothing in
+    the repo loads `.env`, there is no `python-dotenv`, so the file alone does nothing). 3 dev_tune cases,
+    real API: **all three took `route=strong`**, flash and strong agreed on all three, grounding kept the
+    model prose, **$0.0075/case ($0.0213 of it GLM-5.2, 95%)**, 9,187 in / 322 out tokens per case,
+    11.1–27.5 s per case (the 27.5 s one is a cold engine load at 15.6 s + flash 7.6 + strong 3.6).
+    That matches P2's prediction that most cases escalate on the "all three fields asked" trigger, and
+    their ~$0.15 for a 20-case run. Confidence was `Low` on all three — correctly: two were below
+    `ESCALATE_MARGIN`, and on the third the model overruled the engine's C1. **Calibration note for the
+    REPORT:** the "model overruled the engine" bucket needs its own accuracy row, because on that case
+    the model was right and the engine's C1 was periodic noise.
+  - **Environment trap, cost us the first routed attempt (P1's Mac only).** `requirements.txt` says
+    `openai>=1.0`, which now resolves to **openai 3.14.1**; it vendors `httpx2`, whose response
+    decompression calls `process(output_buffer_limit=...)` and raises `TypeError: process() takes no
+    keyword arguments` against older `brotli`/`zstandard`. Every model call died *after* the HTTP
+    response arrived, so the agent recorded `route="fallback"` with **`errors: []` and 0 tokens** —
+    silent. Fixed locally with `python -m pip install -U brotli zstandard`. **The container is not
+    affected** (verified: a live GLM-4.7-Flash call inside the image works on the same openai 3.14.1).
+    Two follow-ups: (a) **P2 — should `requirements.txt` pin the versions we actually tested?** The
+    judges rebuild the image, and an unpinned `openai>=1.0` lets a future release land untested in the
+    graded run; (b) **P2 — `route="fallback"` with an empty `errors` list hides exactly this class of
+    failure.** A `TypeError` is not one of the exceptions `llm.ask` catches, so it escapes past
+    `ModelUnavailable` / `APITimeoutError` handling and whatever catches it upstream does not record it.
+  - Also worth knowing: on this Mac the bare `pip` is a different interpreter from `python`
+    (`/Library/Frameworks/...` vs `/opt/anaconda3/...`), so `pip install openai` "succeeded" while
+    `python -c "import openai"` still failed. Use `python -m pip` on this machine.
+- [x] Checkpoint 3 — first end-to-end ORIGIN (12:45) — **MERGED on `main`** by Person 1's machine
+      (`--no-ff` person1 then person2; the only overlapping files were `PLAN.md` and `origin/config.py`,
+      both keep-both-sides, no manual conflict). **147 tests pass on `main`.** P1's merge results are at
+      the end of this entry, after P2's notes.
+      _P2's notes, written before the merge:_ **P2 side complete on `person2`.** Router, validator, confidence and evidence all land with tests:
       **115 tests pass** (excluding `test_load.py`, see below). `run.py` and `Makefile validate` now
       default to `agents.origin`.
   - Engine-only dev_tune vs heuristic: **blocked on P1's `origin/engine.py`.** Until it imports,
@@ -1713,6 +1846,25 @@ Update this on `main` after each merge so the humans can `/clear` and resume.
     P1's test, P1's threshold — but note our `CASE_SOFT_DEADLINE_S` is 45 s and a cold day plus a
     strong call is already 35 + 24 s.
 - [ ] Checkpoint 4 — docker + final eval (1:45)
+  - **Docker gate already measured on P1's Mac, keyed, with the real default agent (`agents.origin`,
+    `route` decided per case). This closes the CP3 gap; CP4 still owes the eval table.**
+    | measurement | result | limit |
+    |---|---|---|
+    | 2-case `make docker` | passes, 2 evidence files, real tokens | must pass |
+    | **20 cases, routed, in the container** | **5 min 54 s** (mean 17.6 s/case, max 37.7 s) | < 20 min |
+    | cases over our 45 s soft deadline | **0** | — |
+    | **peak memory** | **1.74 GiB** of 7.654 | < 3 GB target, 8 GB cap |
+    | **cost** | **$0.126 for 20 cases** ($0.0063/case, max $0.0112); GLM-5.2 is 95% of it | $25/run, $3/case |
+    | tokens | 7,451 in / 380 out per case | vs the 474 K "typical case" in docs/models.md |
+    | routes | **strong 16, gate 4**, flash-only 0, fallback 0, **0 cases with errors** | — |
+    | confidence | Low 15, High 4, Medium 1 | calibration input |
+    | image | 466 MB, builds in 20 s; writes only `/out`; `data/` out of the build context | — |
+    So the 20-minute run limit is not a risk (30% of it), and neither is the budget (0.5% of it).
+    P2's "cold load + escalation ≈ 51 s" worry does not reproduce in the container: the worst case was
+    37.7 s. The gate fires on 4/20, which is the number the routing breakdown needs.
+    **Caveat: that run used the first 20 rows of `dev/query_dev.csv`, which include 3 holdout row_ids
+    (6, 9, 19), so it is a timing / cost / routing measurement only — it was deliberately NOT scored and
+    no per-case result was opened. Score the holdout once, with `eval/run_eval.py`, at CP4.**
   - Holdout table (routed / single-strong / single-flash / engine / heuristic):
   - Docker 20-case time and peak memory:
   - Demo case row_id:
