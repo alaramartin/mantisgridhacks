@@ -126,9 +126,21 @@ set -a; . ./.env; set +a                      # the key must be in the shell
 python run.py --dataset data/Market-cloudbed-1 --queries eval/splits/demo.csv --out out/demo
 ```
 
-That pre-generates the demo case so a hung API call can never sink the beat. **Then delete it**
-(`rm -rf out/demo`) if you intend to run it live — but keep a second terminal tab with
-`cat out/demo/evidence/38.md` ready from the pre-run, as the fallback.
+That pre-generates the demo case so a hung API call can never sink the beat. **Verified working at
+13:5x today**: route `strong`, margin 0.068, confidence `Low`, answer
+`node-6 / node disk write I/O consumption / 2022-03-21 03:39:00` against the key's `03:39:14`,
+28.6 s, 6,569 in / 320 out tokens, no errors.
+
+If you want to run it live as well, copy the pre-generated run aside first
+(`cp -r out/demo out/demo_backup`) and keep tab 2 pointed at the **backup**, so a live run that
+overwrites `out/demo` cannot destroy your fallback.
+
+**Regenerate it after any change to how the models are used** — the route, the confidence and
+possibly the answer can move. It costs 30 seconds and about a cent.
+
+Note the evidence file is **ASCII-folded** (`·` renders as `-`, `→` as `->`) because `run.py` writes
+it without an explicit encoding and that killed a run on a Windows machine. So the fact lines read
+`F6 - metric_node.csv - node-6 - system.io.w_s -- …`.
 
 **Setup:** terminal font ≥ 18 pt, window maximised, three tabs — **(1)** the repo for the live run,
 **(2)** the pre-generated evidence file, **(3)** the raw CSV for the grep. Slides on screen 2.
@@ -137,8 +149,8 @@ That pre-generates the demo case so a hung API call can never sink the beat. **T
 |---|---|---|---|
 | **0:00–0:25** | Slide 1 | P1 | "When one component fails, everything downstream looks broken — the loudest thing is usually a victim, not the cause. The best published agent on this benchmark solves about one case in nine. We're not going to beat that by reading more telemetry: it's twelve gigabytes a day, forty-two pods, nine million spans. Nobody reads that at three in the morning." |
 | **0:25–0:55** | Slide 2 (`pipeline.png`) | P1 | "ORIGIN reads only the half-hour in question. A deterministic engine rebuilds who runs where and who calls whom, ranks the legal suspects, and writes down the facts behind each one. **Then** — and only if it isn't sure — it pays a model to choose between them. The model never sees telemetry; it sees forty facts, about seven thousand tokens, against four hundred and seventy-four thousand to read the window." |
-| **0:55–1:45** | **Terminal, tab 1** — run it live | P1 | Type: `python run.py --dataset data/Market-cloudbed-1 --queries eval/splits/demo.csv --out out/demo`. While it runs (~16 s), narrate: "It's reading the window by byte offset, scoring every series against the hour before, rebuilding the topology from the metric ids and the call graph from trace parent-child pairs. This case is ambiguous, so it will escalate to the strong model." When it prints, read the answer: "**node-6, node disk write I/O consumption, 03:39**. The answer key says 03:39:14." |
-| **1:45–2:45** | **Terminal, tab 2** — `cat out/demo/evidence/38.md` | P2 | **Never cut this beat.** "Four sections. The answer. The confidence — it says **Low**, and why: the top two suspects are seven percent apart. It was right anyway, and we'd rather it tell you when to double-check it. Then the evidence: every fact has its file, its component, its KPI, and an epoch timestamp." Scroll to F6, then **tab 3**: `awk -F, '$1==1647805140 && $2=="node-6" && $3=="system.io.w_s"' data/Market-cloudbed-1/telemetry/2022_03_21/metric/metric_node.csv` → `1647805140,node-6,system.io.w_s,502.5`. "That's the number from the explanation, in the raw file. Not paraphrased — copied." Then read one "Ruled out" line aloud: "node-4 — first went wrong two minutes after node-6." |
+| **0:55–1:45** | **Terminal, tab 1** — run it live | P1 | Type: `python run.py --dataset data/Market-cloudbed-1 --queries eval/splits/demo.csv --out out/demo`. **It takes ~30 s** (measured 28.6 s: every fresh process pays a cold window load, including the one-off log pass — an in-process warm run is ~16 s, which you will not get here). You have 30 seconds of narration to fill, so use it: "It's reading the window by byte offset, scoring every series against the hour before, rebuilding the topology from the metric ids and the call graph from trace parent-child pairs. This case is ambiguous, so it will escalate to the strong model." When it prints, read the answer: "**node-6, node disk write I/O consumption, 03:39**. The answer key says 03:39:14." |
+| **1:45–2:45** | **Terminal, tab 2** — `cat out/demo/evidence/38.md` | P2 | **Never cut this beat.** "Four sections. The answer. The confidence — it says **Low**, and why: the top two suspects are seven percent apart. It was right anyway, and we'd rather it tell you when to double-check it. Then the evidence: every fact has its file, its component, its KPI, and an epoch timestamp." Scroll to **F6** — the line reads `F6 - metric_node.csv - node-6 - system.io.w_s -- baseline median 0 (60 samples); first outside normal at 2022-03-21 03:39:00 (ts 1647805140), value 502.5`. Then **tab 3**: `awk -F, '$1==1647805140 && $2=="node-6" && $3=="system.io.w_s"' data/Market-cloudbed-1/telemetry/2022_03_21/metric/metric_node.csv` → `1647805140,node-6,system.io.w_s,502.5`. "That's the number from the explanation, in the raw file. Not paraphrased — copied." Then read one "Ruled out" line aloud: "node-4 — first went wrong two minutes after node-6." |
 | **2:45–3:35** | Slide 3 (`topology.png` + table) | P2 | "Nothing in that picture is configured — pod-to-node is parsed from the metric ids, pod-to-pod from the traces. Here's the eval: a 21-case holdout we never tuned on, ⟨N⟩ configurations, repeats for variance." Then the numbers, and **the honest line**: ⟨routed vs single-strong: whichever way it fell⟩. If the strong model bought little: "GLM-5.2 is ninety-five percent of our spend and bought us ⟨X⟩ — that's a result, and we're reporting it rather than hiding it." |
 | **3:35–4:00** | Slide 3 | P1 | "Where it fails: process termination is invisible in this telemetry — no series stops, no restart, no error log — so we say so instead of guessing. Node disk-space faults hide inside a metric that swings by six gigabytes an hour. And our numbers are from one deployment; yours is another, which is exactly why nothing in the engine hardcodes a component name. Thank you." |
 
