@@ -49,6 +49,13 @@ CONFIGS: dict[str, dict] = {
     "single-strong": {"agent": "agents.origin", "env": {"ORIGIN_MODE": "single",
                                                         "RCA_MODEL": "zai-org/GLM-5.2"}},
     "routed":        {"agent": "agents.origin", "env": {"ORIGIN_MODE": "routed"}},
+    # the gate as designed: escalate on ambiguity only, not because the question
+    # happens to ask for all three fields (which nearly every task does)
+    # gate -> Flash, never escalate: the strong tier is where the accuracy went
+    "routed-flash":  {"agent": "agents.origin", "env": {"ORIGIN_MODE": "routed",
+                                                        "ORIGIN_NO_STRONG": "1"}},
+    "routed-tight":  {"agent": "agents.origin", "env": {"ORIGIN_MODE": "routed",
+                                                        "ORIGIN_NO_ASK3": "1"}},
 }
 
 PER_CASE_COLS = ["config", "split", "repeat", "row_id", "task_index", "difficulty",

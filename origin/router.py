@@ -271,10 +271,26 @@ def route(a: Analysis, llm, mode: str, deadline: float) -> dict:
         why_escalate.append(f"margin {a.margin:.2f} below {ESCALATE_MARGIN}")
     if n >= 2:
         why_escalate.append(f"{n} failures to separate")
-    if all(a.case.asks.get(k) for k in ("datetime", "component", "reason")):
+    # "The question asks for all three fields" was meant to catch hard cases, but
+    # nearly every task asks all three, so on the holdout it sent 86% of cases to
+    # GLM-5.2 on its own -- the gate barely fired and `routed` collapsed into
+    # `single-strong`. ORIGIN_NO_ASK3=1 drops the trigger so escalation is decided
+    # by ambiguity alone; measured as the `routed-tight` config.
+    if (all(a.case.asks.get(k) for k in ("datetime", "component", "reason"))
+            and not os.environ.get("ORIGIN_NO_ASK3")):
         why_escalate.append("all three fields asked")
 
     if not why_escalate:
+        if flash_picks is None:
+            d["route"] = "fallback"
+        return d
+
+    if os.environ.get("ORIGIN_NO_STRONG"):
+        # Measured on dev_tune: the strong tier is the whole of the accuracy loss
+        # (30 escalated cases, engine 0.447 -> 0.325), while Flash never changed an
+        # answer either way. ORIGIN_NO_STRONG=1 keeps the gate and the cheap tier
+        # and stops there; measured as the `routed-flash` config.
+        d["notes"].append("escalation disabled (ORIGIN_NO_STRONG)")
         if flash_picks is None:
             d["route"] = "fallback"
         return d

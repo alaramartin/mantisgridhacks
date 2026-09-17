@@ -272,6 +272,20 @@ def main() -> None:
 
     text = "\n".join(md)
     OUT.write_text(text, encoding="utf-8")
+
+    # Keep REPORT.md's results section in lockstep with the CSVs, so the report can
+    # never quote a number the committed data no longer supports.
+    report = ROOT / "REPORT.md"
+    a, b = "<!-- BEGIN SUMMARY -->", "<!-- END SUMMARY -->"
+    if report.exists():
+        r = report.read_text(encoding="utf-8")
+        if a in r and b in r:
+            start = md.index("## 1. Holdout (21 cases, never tuned on)")
+            body = "\n".join(md[start:])
+            report.write_text(r[:r.index(a) + len(a)] + "\n\n" + body + "\n"
+                              + r[r.index(b):], encoding="utf-8")
+            print(f"-> {report} (results section refreshed)")
+
     print(text)
     print(f"\n-> {OUT}")
 
