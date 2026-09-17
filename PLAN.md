@@ -148,6 +148,13 @@ evidence → node promotion in the causal filter → `single-flash` row → trac
 8. **Never present a fallback or engine-only run as the model deciding.**
 9. **Secrets:** `.env` is gitignored and dockerignored. Never print a key.
 10. **Keep `run.py`'s command line.** The only edit to `run.py` is its default `--agent`.
+11. **`score.py` is never edited** — it is OpenRCA's evaluator, vendored unchanged, and it
+    is the thing that grades us. **`llm.py` IS edited**, deliberately and with the organizers'
+    blessing (`llm.py:27` "tuning it is fair game"): one patch so Flash replies in
+    `message.reasoning` are not thrown away. Full justification and the disclosure checklist
+    are in Person 2's Phase 2, under "WE MODIFY AN ORGANIZER FILE HERE". Those are the only
+    two starter files with a rule attached; do not modify any other starter file without
+    adding it there.
 
 ---
 
@@ -1095,6 +1102,54 @@ Print this to your human and stop:
       This is the **only** starter file we change beyond `run.py`'s default `--agent`.
       Record it in `README.md` and `ATTRIBUTION.md`, and tell Person 1 at the merge —
       anyone using the starter `llm.py` with a Flash model is silently getting empty strings.
+
+      ---
+
+      #### ⚠️ WE MODIFY AN ORGANIZER FILE HERE. Read this before touching it again.
+
+      **SHIPPED at CP2** (commit `d957af6`). The team asked whether patching the
+      organizers' code is allowed. It is, and here is the check, so nobody has to
+      re-litigate it at 2pm:
+
+      **What the rules actually freeze**
+      - `docs/submission.md`: *"Keep `run.py`'s command line as it is; change the agent."*
+        That is the only hard constraint, and it is about `run.py`'s CLI — which we have
+        not touched (we change only its `--agent` default, which the PLAN already allows).
+      - `score.py` is OpenRCA's evaluator, *"vendored unchanged"*. **Never edit it.**
+      - Nothing anywhere forbids editing `llm.py`.
+
+      **What `llm.py` says about itself** (`llm.py:27`, echoed at `docs/models.md:97`):
+      > "The policy here is a starting point, not the only sensible one — `docs/models.md`
+      > says what it is defending against, and tuning it is fair game."
+
+      `docs/models.md:43` also notes the API is OpenAI-compatible and *"the OpenAI SDK works
+      unchanged"* — i.e. `llm.py` is a convenience wrapper we could replace outright, not a
+      fixture of the harness.
+
+      **The honest caveat:** that "fair game" line is written about the *retry / fallback
+      policy*, and our patch is response *parsing*. So it sits next to the sanction rather
+      than squarely inside it. The load-bearing permission is the broader one: the starter is
+      a starting point; only `run.py`'s CLI and the scorer are fixed.
+
+      **Why it is safe — the part that would actually matter if we got it wrong.**
+      `llm.py`'s per-model token accounting is what `cost.py` and our judged cost numbers read.
+      The patch sits **after** that accounting block and changes only which field the answer
+      text is read from. Token counts, prices, the breaker and the retry loop are byte-identical.
+      It cannot flatter our cost or accuracy numbers — it only stops us throwing away a
+      response we have already paid for.
+
+      **Rejected alternative:** leave `llm.py` pristine and subclass it in
+      `origin/llm_client.py`, overriding `_once`. Same behaviour, zero diff against the
+      starter. Rejected because overriding a private method is more fragile than the patch
+      it replaces, and the disclosure obligation is identical either way.
+
+      **Disclosure obligations — all three must hold at submission:**
+      1. `ATTRIBUTION.md` → "Changes we made to the MantisGrid starter" ✅ done at CP2
+      2. `docs/ai-use.md` → `llm.py` row says "starter, patched" ✅ done at CP2
+      3. `README.md` → **STILL OWED.** README does not exist yet; it is P2's Phase 5
+         deliverable. The submission form asks what we changed, so this is not optional.
+
+      ---
       `tests/test_llm.py`: a stub response with `content=""` and `reasoning='{"a":1}'` must
       come back as `'{"a":1}'`; one with both populated must prefer `content`; `<think>`
       stripping must still work on both fields.
