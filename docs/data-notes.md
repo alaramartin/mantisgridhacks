@@ -346,3 +346,16 @@ _verify_traps.py ran in 13 s_
 - **Answer times lag the metric onset.** Metrics are 60 s apart, so a fault at 07:46:11 first shows in the
   07:47 or 07:48 sample; the evaluator's tolerance is 60 s. Trace-edge signals resolve to 30 s.
   `ONSET_SHIFT_S` is still 0 — it is the first Phase 4 lever (0 / −30 / −60).
+
+## Only two of the six nodes host pods (found while building the figures)
+
+`metric_container.cmdb_id` covers **node-5 (6 pods) and node-6 (36 pods)** on both telemetry days;
+`metric_node.csv` covers all six. So nodes 1–4 have node metrics and no containers. Consequences:
+
+- The node↔pod rules in `origin/candidates.py` (promotion, and "a node with exactly one anomalous pod
+  is that pod's symptom") can only ever fire for node-5 and node-6. Node faults on node-1…node-4 are
+  diagnosed from their own metrics alone, which is the correct behaviour, not a gap.
+- It explains why **node-6 kept appearing as the top candidate** before the single-pod rule: any of 36
+  pods' load shows up in node-6's `system.io.*` and `system.cpu.iowait`.
+- The judged deployment may distribute pods differently. Nothing in the engine assumes this shape —
+  it is derived per case from the ids — but the *usefulness* of the node rules depends on it.
