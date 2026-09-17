@@ -102,24 +102,56 @@ def routing(cases: pd.DataFrame) -> list[str]:
 
 
 def calibration(cases: pd.DataFrame) -> list[str]:
+    """Per split, never pooled.
+
+    Pooling hid the thing that matters here: on the holdout the High bucket is
+    four cases, and four cases produced an apparent inversion that the 49-case
+    dev_tune sample does not show. A calibration claim at n=4 is not a claim.
+    """
     c = cases[cases.config.isin(["routed", "single-strong", "single-flash", "engine"])
               & cases.confidence.notna()]
     if c.empty:
         return ["_no confidence recorded yet._"]
     rows = []
-    for level in ("High", "Medium", "Low"):
-        g = c[c.confidence == level]
-        if len(g):
-            rows.append([level, len(g), f"{len(g) / len(c):.0%}", f(g.score.mean()),
-                         f"{(g.score == 1.0).sum()}/{len(g)}"])
-    out = table(rows, ["confidence", "cases", "share", "mean score", "fully solved"])
-    hi, lo = c[c.confidence == "High"], c[c.confidence == "Low"]
-    if len(hi) and len(lo):
-        verdict = ("calibrated: High scores above Low"
-                   if hi.score.mean() > lo.score.mean()
-                   else "**NOT calibrated: High does no better than Low.** "
-                        "Reported as a negative result rather than quietly dropped")
-        out += ["", f"_{verdict} ({f(hi.score.mean())} vs {f(lo.score.mean())})._"]
+    for split in ("dev_tune", "holdout"):
+        g0 = c[c.split == split]
+        for level in ("High", "Medium", "Low"):
+            g = g0[g0.confidence == level]
+            if len(g):
+                rows.append([split, level, len(g), f"{len(g) / len(g0):.0%}",
+                             f(g.score.mean()),
+                             f"{(g.score == 1.0).sum()}/{len(g)}",
+                             "**too small to read**" if len(g) < 6 else ""])
+    out = table(rows, ["split", "confidence", "cases", "share", "mean score",
+                       "fully solved", "note"])
+    gap = {}
+    for split in ("dev_tune", "holdout"):
+        g0 = c[c.split == split]
+        hi, lo = g0[g0.confidence == "High"], g0[g0.confidence == "Low"]
+        if len(hi) and len(lo):
+            gap[split] = (hi.score.mean(), lo.score.mean(), len(hi), len(lo))
+    if len(gap) == 2:
+        d_hi, d_lo, dn, _ = gap["dev_tune"]
+        h_hi, h_lo, hn, _ = gap["holdout"]
+        agree = (d_hi > d_lo) == (h_hi > h_lo)
+        if agree and d_hi > d_lo:
+            verdict = ("**Calibrated.** High beats Low on both splits "
+                       f"({f(d_hi)} vs {f(d_lo)} on dev_tune, {f(h_hi)} vs {f(h_lo)} "
+                       "on holdout).")
+        elif agree:
+            verdict = ("**Not calibrated, consistently.** High scores below Low on "
+                       f"both splits ({f(d_hi)} vs {f(d_lo)}, {f(h_hi)} vs {f(h_lo)}). "
+                       "Reported as a negative result.")
+        else:
+            verdict = (
+                "**The two splits disagree, so we do not claim calibration.** "
+                f"On dev_tune High beats Low ({f(d_hi)} vs {f(d_lo)}, n={dn}); on the "
+                f"holdout it is the worse bucket ({f(h_hi)} vs {f(h_lo)}, n={hn}). "
+                "Margin, the main input to the rule, correlates with score at only "
+                "+0.06 on dev_tune and mean score is flat across all four margin "
+                "quartiles -- so the dev_tune ordering may itself be chance, and we "
+                "read the label as weakly informative at best.")
+        out += ["", "_" + verdict + "_"]
     return out
 
 
@@ -226,7 +258,7 @@ def main() -> None:
     md += routing(cases)
     md += [""]
 
-    md += ["## 5. Knowing when it doesn't know (all model configs, splits pooled)", ""]
+    md += ["## 5. Knowing when it doesn't know (all model configs, per split)", ""]
     md += calibration(cases)
     md += [""]
 
