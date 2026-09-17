@@ -163,8 +163,13 @@ def case_seconds(usage_rec: dict, trace_rec: dict) -> float:
     """Wall seconds for a case, made honest about the engine cache.
 
     A cached engine read costs ~0 s here but will cost its cold seconds in the
-    judged run, which has no cache. When the agent records what the cold read
-    cost (`seconds.engine_cold`), we bill that instead. REPORT.md says so.
+    judged run, which has no cache.
+
+    NOT CURRENTLY ACTIVE: nothing writes `seconds.engine_cold`, so this only ever
+    returns the raw wall time. It is left in place as the hook for recording it,
+    but until something does, **repeat runs understate engine time** -- repeat 1
+    is cold and honest, repeats 2+ are not. REPORT.md quotes repeat 1 and the
+    Docker measurement for timing, and says so.
     """
     wall = float(usage_rec.get("wall_s", 0.0))
     secs = (trace_rec or {}).get("seconds") or {}

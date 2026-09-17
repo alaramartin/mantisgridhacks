@@ -73,9 +73,12 @@ row is labelled.
    wall-clock per case. **The authoritative timing is the Docker measurement in
    §6**, taken at the judged configuration (2 CPU, 8 GB) with nothing else
    running. Dollars and scores are unaffected by contention.
-2. **The engine cache.** Repeat runs reuse a per-day metric cache the judged run
-   will not have. Where a cold read was recorded, the harness bills the cold
-   seconds instead (`case_seconds()` in `eval/run_eval.py`).
+2. **The engine cache makes repeat runs look faster than they are.** Repeats reuse
+   a per-day metric cache the judged run will not have, so their engine time is
+   near zero. We built a hook to bill the cold seconds instead, but nothing
+   populates it, so **it is not active** -- rather than imply otherwise, we quote
+   **repeat 1 only** (cold, honest) and the Docker measurement in section 6 for
+   any timing claim. Accuracy and dollars are unaffected by caching.
 
 ---
 
