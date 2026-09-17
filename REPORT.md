@@ -87,11 +87,8 @@ row is labelled.
 
 | config | runs | mean score | fully solved | easy | middle | hard | $/case | $/correct* | s/case mean/max | tok in/out |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `heuristic` | 1 | 0.111 (n=1) | 1.0/21 | 0.111 | 0.111 | 0.110 | $0.0000 | $0.0000 | 1.7 / 6.5 | 0 / 0 |
-| `engine` | 1 | 0.512 (n=1) | 7.0/21 | 0.667 | 0.417 | 0.333 | $0.0000 | $0.0000 | 8.8 / 28.1 | 0 / 0 |
-| `single-flash` | 2 | 0.357 ± 0.000 | 3.0/21 | 0.444 | 0.278 | 0.333 | $0.0004 | $0.0012 | 8.4 / 24.0 | 4,986 / 221 |
-| `single-strong` | 3 | 0.377 ± 0.014 | 4.7/21 | 0.463 | 0.306 | 0.333 | $0.0078 | $0.0208 | 7.9 / 24.1 | 4,987 / 196 |
-| `routed` | 3 | 0.369 ± 0.000 | 4.0/21 | 0.444 | 0.306 | 0.333 | $0.0073 | $0.0197 | 12.7 / 51.8 | 8,885 / 375 |
+| `heuristic` | 1 | 0.111 (n=1) | 1.0/21 | 0.111 | 0.111 | 0.110 | $0.0000 | $0.0000 | 1.9 / 6.3 | 0 / 0 |
+| `engine` | 1 | 0.524 (n=1) | 7.0/21 | 0.667 | 0.444 | 0.333 | $0.0000 | $0.0000 | 7.7 / 25.5 | 0 / 0 |
 
 \* `$/correct` is noisy at n=21 — one case moves it a lot. Quoted for completeness, not for ranking.
 
@@ -99,59 +96,50 @@ row is labelled.
 
 | config | runs | mean score | fully solved | easy | middle | hard | $/case | $/correct* | s/case mean/max | tok in/out |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `heuristic` | 1 | 0.056 (n=1) | 1.0/49 | 0.071 | 0.037 | 0.062 | $0.0000 | $0.0000 | 1.5 / 5.9 | 0 / 0 |
-| `engine` | 1 | 0.539 (n=1) | 18.0/49 | 0.476 | 0.562 | 0.645 | $0.0000 | $0.0000 | 5.6 / 29.6 | 0 / 0 |
-| `routed` | 1 | 0.464 (n=1) | 14.0/49 | 0.357 | 0.562 | 0.500 | $0.0052 | $0.0113 | 17.1 / 58.5 | 7,025 / 336 |
+| `heuristic` | 1 | 0.056 (n=1) | 1.0/49 | 0.071 | 0.037 | 0.062 | $0.0000 | $0.0000 | 1.7 / 5.4 | 0 / 0 |
+| `engine` | 1 | 0.575 (n=1) | 21.0/49 | 0.548 | 0.575 | 0.645 | $0.0000 | $0.0000 | 7.7 / 36.8 | 0 / 0 |
 
 ## 3. Score by task type (holdout)
 
-| task | `engine` | `single-flash` | `single-strong` | `routed` |
-|---|---|---|---|---|
-| task_1 | 0.500 | 0.167 | 0.111 | 0.167 |
-| task_2 | 0.833 | 0.833 | 0.833 | 0.833 |
-| task_3 | 0.667 | 0.333 | 0.444 | 0.333 |
-| task_4 | 0.417 | 0.250 | 0.250 | 0.250 |
-| task_5 | 0.500 | 0.250 | 0.250 | 0.250 |
-| task_6 | 0.333 | 0.333 | 0.417 | 0.417 |
-| task_7 | 0.333 | 0.333 | 0.333 | 0.333 |
+| task | `engine` |
+|---|---|
+| task_1 | 0.500 |
+| task_2 | 0.833 |
+| task_3 | 0.667 |
+| task_4 | 0.500 |
+| task_5 | 0.500 |
+| task_6 | 0.333 |
+| task_7 | 0.333 |
 
 ## 4. Where the routing went (`routed`, all splits)
 
-| route | cases | share | mean score | $/case | s/case |
-|---|---|---|---|---|---|
-| `strong` | 84 | 75% | 0.393 | $0.0084 | 16.6 |
-| `gate` | 17 | 15% | 0.471 | $0.0000 | 3.4 |
-| `flash` | 9 | 8% | 0.444 | $0.0004 | 15.0 |
-| `fallback` | 2 | 2% | 0.500 | $0.0007 | 27.3 |
+_no routed run recorded yet._
 
 ## 5. Knowing when it doesn't know (all model configs, per split)
 
 | split | confidence | cases | share | mean score | fully solved | note |
 |---|---|---|---|---|---|---|
-| dev_tune | High | 24 | 24% | 0.722 | 14/24 |  |
-| dev_tune | Medium | 15 | 15% | 0.400 | 4/15 |  |
-| dev_tune | Low | 59 | 60% | 0.438 | 14/59 |  |
-| holdout | High | 27 | 14% | 0.167 | 0/27 |  |
-| holdout | Medium | 33 | 17% | 0.227 | 0/33 |  |
-| holdout | Low | 129 | 68% | 0.471 | 39/129 |  |
+| dev_tune | High | 13 | 27% | 0.756 | 8/13 |  |
+| dev_tune | Medium | 9 | 18% | 0.333 | 2/9 |  |
+| dev_tune | Low | 27 | 55% | 0.568 | 11/27 |  |
+| holdout | High | 4 | 19% | 0.312 | 0/4 | **too small to read** |
+| holdout | Medium | 4 | 19% | 0.250 | 0/4 | **too small to read** |
+| holdout | Low | 13 | 62% | 0.673 | 7/13 |  |
 
-_**The two splits disagree, so we do not claim calibration.** On dev_tune High beats Low (0.722 vs 0.438, n=24); on the holdout it is the worse bucket (0.167 vs 0.471, n=27). Margin, the main input to the rule, correlates with score at only +0.06 on dev_tune and mean score is flat across all four margin quartiles -- so the dev_tune ordering may itself be chance, and we read the label as weakly informative at best._
+_**The two splits disagree, so we do not claim calibration.** On dev_tune High beats Low (0.756 vs 0.568, n=13); on the holdout it is the worse bucket (0.312 vs 0.673, n=4). Margin, the main input to the rule, correlates with score at only +0.06 on dev_tune and mean score is flat across all four margin quartiles -- so the dev_tune ordering may itself be chance, and we read the label as weakly informative at best._
 
 ## 6. Failure taxonomy — the first thing wrong, per missed scoring point
 
-| first thing wrong | `engine` | `single-strong` | `routed` |
-|---|---|---|---|
-| component wrong | 18 | 28 | 43 |
-| reason wrong | 27 | 24 | 45 |
-| time wrong (> 60 s off) | 23 | 34 | 53 |
-| **total missed** | 68 | 86 | 141 |
+| first thing wrong | `engine` |
+|---|---|
+| component wrong | 18 |
+| reason wrong | 26 |
+| time wrong (> 60 s off) | 20 |
+| **total missed** | 64 |
 
 ## 7. Headlines
 
-- **Routing:** routed reached **98%** of single-strong's score at **92%** of its cost and **162%** of its time (0.369 vs 0.377, $0.0073 vs $0.0078).
-- **Is the big model worth it?** GLM-5.2 bought **+0.020** over GLM-4.7-Flash for **19x** the dollars.
-- **Do the models add anything over the engine?** **No** (0.512 engine vs 0.369 routed). The deterministic engine is the product; the models are not paying for themselves. Reported as a negative result.
-- **Engine vs the free baseline:** 0.512 vs 0.111, at $0.00 either way.
+- **Engine vs the free baseline:** 0.524 vs 0.111, at $0.00 either way.
 
 _Holdout numbers. n=21: a difference of one or two cases is a tie._
 
@@ -168,6 +156,11 @@ the sentence says so.
 ---
 
 ## 4b. A measurement error we made, and how the eval caught it
+
+> ⚠️ **STALE NUMBERS — re-measure before submitting.** Everything in this section
+> was measured against the engine as it stood before Person 1's Phase-4 tuning
+> (dev_tune 0.539 → 0.5747). The *methodological* point stands unchanged; the
+> figures must be re-derived from the current `eval/results/per_case.csv`.
 
 Breaking `routed` down by the route each case took made it look as if only the
 strong tier was harmful:

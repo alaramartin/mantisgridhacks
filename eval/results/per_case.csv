@@ -1,1 +1,141 @@
 config,split,repeat,row_id,task_index,difficulty,score,dollars,wall_s,tokens_in,tokens_out,route,confidence,n_failures,passed,failed
+engine,dev_tune,1,0,task_6,middle,1.0,0,24.91,0,0,engine_only,Low,1.0,shippingservice-1; container read I/O load,
+engine,dev_tune,1,1,task_1,easy,1.0,0,3.73,0,0,engine_only,Low,1.0,2022-03-20 09:54:59,
+engine,dev_tune,1,2,task_1,easy,0.0,0,4.28,0,0,engine_only,Medium,1.0,,2022-03-20 10:25:33
+engine,dev_tune,1,3,task_6,middle,0.0,0,5.16,0,0,engine_only,Medium,1.0,,node memory consumption; node-1
+engine,dev_tune,1,4,task_3,easy,1.0,0,5.57,0,0,engine_only,High,1.0,shippingservice-1,
+engine,dev_tune,1,5,task_2,easy,1.0,0,5.84,0,0,engine_only,Low,1.0,container network packet corruption,
+engine,dev_tune,1,7,task_6,middle,0.5,0,6.0,0,0,engine_only,Low,2.0,recommendationservice; container CPU load,node disk read I/O consumption; node-1
+engine,dev_tune,1,8,task_5,middle,1.0,0,6.14,0,0,engine_only,High,1.0,node-2; 2022-03-20 13:13:19,
+engine,dev_tune,1,10,task_1,easy,1.0,0,6.13,0,0,engine_only,Low,2.0,2022-03-20 13:39:48; 2022-03-20 13:51:51,
+engine,dev_tune,1,11,task_1,easy,0.5,0,6.08,0,0,engine_only,Low,2.0,2022-03-20 14:23:15,2022-03-20 14:14:46
+engine,dev_tune,1,12,task_2,easy,0.0,0,6.55,0,0,engine_only,Low,1.0,,container network packet retransmission
+engine,dev_tune,1,13,task_5,middle,0.5,0,6.24,0,0,engine_only,High,1.0,2022-03-20 16:31:44,currencyservice-0
+engine,dev_tune,1,14,task_5,middle,1.0,0,6.6,0,0,engine_only,Low,2.0,node-4; 2022-03-20 17:12:41; paymentservice; 2022-03-20 17:23:19,
+engine,dev_tune,1,15,task_1,easy,0.0,0,8.8,0,0,engine_only,Low,1.0,,2022-03-20 17:40:22
+engine,dev_tune,1,16,task_5,middle,1.0,0,10.98,0,0,engine_only,Low,2.0,paymentservice; 2022-03-20 18:06:48; emailservice; 2022-03-20 18:24:06,
+engine,dev_tune,1,17,task_2,easy,0.5,0,8.27,0,0,engine_only,Low,2.0,container memory load,container network packet corruption
+engine,dev_tune,1,18,task_6,middle,0.0,0,12.19,0,0,engine_only,Medium,1.0,,container network packet retransmission; frontend-2
+engine,dev_tune,1,20,task_6,middle,0.0,0,11.7,0,0,engine_only,Medium,1.0,,shippingservice2-0; container CPU load
+engine,dev_tune,1,22,task_4,middle,0.5,0,8.79,0,0,engine_only,Low,2.0,container memory load; 2022-03-20 21:30:16,node disk space consumption; 2022-03-20 21:52:17
+engine,dev_tune,1,25,task_7,hard,1.0,0,6.44,0,0,engine_only,High,1.0,checkoutservice-2; container memory load; 2022-03-20 23:09:26,
+engine,dev_tune,1,26,task_7,hard,1.0,0,36.81,0,0,engine_only,High,1.0,productcatalogservice; container CPU load; 2022-03-20 23:30:10,
+engine,dev_tune,1,29,task_6,middle,0.5,0,7.46,0,0,engine_only,Low,1.0,container network latency,frontend-1
+engine,dev_tune,1,31,task_2,easy,0.5,0,10.35,0,0,engine_only,Low,2.0,container CPU load,container process termination
+engine,dev_tune,1,32,task_2,easy,0.0,0,10.28,0,0,engine_only,Low,1.0,,container process termination
+engine,dev_tune,1,34,task_1,easy,1.0,0,7.02,0,0,engine_only,High,2.0,2022-03-21 01:06:45; 2022-03-21 01:20:30,
+engine,dev_tune,1,37,task_3,easy,1.0,0,6.56,0,0,engine_only,Medium,2.0,node-5; recommendationservice,
+engine,dev_tune,1,38,task_7,hard,1.0,0,6.36,0,0,engine_only,Low,1.0,node-6; node disk write I/O consumption; 2022-03-21 03:39:14,
+engine,dev_tune,1,39,task_4,middle,0.0,0,6.47,0,0,engine_only,Low,1.0,,container network packet retransmission; 2022-03-21 04:32:44
+engine,dev_tune,1,40,task_5,middle,1.0,0,5.09,0,0,engine_only,High,1.0,node-4; 2022-03-21 05:15:49,
+engine,dev_tune,1,42,task_4,middle,0.0,0,4.48,0,0,engine_only,High,1.0,,2022-03-21 07:26:56; container read I/O load
+engine,dev_tune,1,44,task_7,hard,0.83,0,4.57,0,0,engine_only,High,2.0,node-6; node disk read I/O consumption; productcatalogservice-0; container CPU load; 2022-03-21 07:55:02,2022-03-21 07:46:11
+engine,dev_tune,1,45,task_6,middle,1.0,0,4.46,0,0,engine_only,Medium,1.0,shippingservice-1; container CPU load,
+engine,dev_tune,1,46,task_5,middle,0.5,0,4.4,0,0,engine_only,High,1.0,node-1,2022-03-21 08:52:45
+engine,dev_tune,1,47,task_7,hard,1.0,0,4.57,0,0,engine_only,Low,2.0,productcatalogservice; container CPU load; 2022-03-21 09:06:25; checkoutservice; container memory load; 2022-03-21 09:26:30,
+engine,dev_tune,1,49,task_5,middle,0.5,0,4.93,0,0,engine_only,Low,1.0,2022-03-21 09:53:57,shippingservice
+engine,dev_tune,1,50,task_2,easy,0.0,0,5.4,0,0,engine_only,Medium,1.0,,node CPU spike
+engine,dev_tune,1,52,task_1,easy,0.5,0,6.14,0,0,engine_only,Medium,2.0,2022-03-21 10:44:52,2022-03-21 10:37:56
+engine,dev_tune,1,53,task_1,easy,1.0,0,7.11,0,0,engine_only,Low,1.0,2022-03-21 11:40:30,
+engine,dev_tune,1,54,task_6,middle,1.0,0,8.17,0,0,engine_only,Low,1.0,currencyservice; container memory load,
+engine,dev_tune,1,55,task_2,easy,0.5,0,8.3,0,0,engine_only,Low,2.0,container write I/O load,container read I/O load
+engine,dev_tune,1,56,task_7,hard,0.33,0,5.63,0,0,engine_only,Low,2.0,emailservice; 2022-03-21 14:08:21,container read I/O load; container write I/O load; 2022-03-21 14:16:53
+engine,dev_tune,1,57,task_3,easy,0.0,0,7.42,0,0,engine_only,High,1.0,,adservice
+engine,dev_tune,1,58,task_1,easy,0.0,0,8.57,0,0,engine_only,Low,1.0,,2022-03-21 15:08:39
+engine,dev_tune,1,61,task_7,hard,0.0,0,7.83,0,0,engine_only,Low,1.0,,node-5; 2022-03-21 16:41:47; node disk space consumption
+engine,dev_tune,1,64,task_3,easy,1.0,0,5.6,0,0,engine_only,High,1.0,node-5,
+engine,dev_tune,1,65,task_4,middle,0.5,0,4.75,0,0,engine_only,Medium,1.0,2022-03-21 23:15:29,node disk space consumption
+engine,dev_tune,1,66,task_6,middle,1.0,0,4.69,0,0,engine_only,High,1.0,node-4; node CPU load,
+engine,dev_tune,1,67,task_7,hard,0.0,0,4.61,0,0,engine_only,Low,1.0,,checkoutservice; 2022-03-21 03:10:48; container network packet corruption
+engine,dev_tune,1,68,task_3,easy,1.0,0,7.27,0,0,engine_only,Low,1.0,productcatalogservice,
+engine,holdout,1,6,task_6,middle,0.5,0,25.52,0,0,engine_only,Low,2.0,recommendationservice; container CPU load,node disk read I/O consumption; node-1
+engine,holdout,1,9,task_4,middle,0.75,0,7.14,0,0,engine_only,Low,2.0,2022-03-20 13:39:48; node CPU load; 2022-03-20 13:51:51,
+engine,holdout,1,19,task_6,middle,0.0,0,8.12,0,0,engine_only,High,1.0,,node disk read I/O consumption; node-4
+engine,holdout,1,21,task_5,middle,0.0,0,6.92,0,0,engine_only,Low,1.0,,2022-03-20 21:16:21; emailservice
+engine,holdout,1,23,task_5,middle,0.5,0,5.86,0,0,engine_only,Low,2.0,cartservice-0; 2022-03-20 21:30:16,node-1; 2022-03-20 21:52:17
+engine,holdout,1,24,task_3,easy,0.0,0,4.26,0,0,engine_only,Medium,1.0,,node-3
+engine,holdout,1,27,task_7,hard,1.0,0,4.27,0,0,engine_only,Low,2.0,adservice; container network latency; 2022-03-20 08:48:49; cartservice; container network latency; 2022-03-20 08:39:11,
+engine,holdout,1,28,task_2,easy,1.0,0,3.53,0,0,engine_only,Low,2.0,container network latency; container network latency,
+engine,holdout,1,30,task_3,easy,1.0,0,7.55,0,0,engine_only,Low,2.0,node-4; paymentservice,
+engine,holdout,1,33,task_7,hard,0.0,0,24.38,0,0,engine_only,Medium,1.0,,2022-03-21 00:37:25; container network packet retransmission; cartservice
+engine,holdout,1,35,task_4,middle,0.75,0,4.67,0,0,engine_only,High,2.0,2022-03-21 01:06:45; container read I/O load; 2022-03-21 01:20:30,container network packet retransmission
+engine,holdout,1,36,task_5,middle,1.0,0,4.44,0,0,engine_only,Low,1.0,node-5; 2022-03-21 01:44:35,
+engine,holdout,1,41,task_1,easy,0.0,0,4.53,0,0,engine_only,Low,1.0,,2022-03-21 05:36:03
+engine,holdout,1,43,task_1,easy,0.5,0,4.41,0,0,engine_only,High,2.0,2022-03-21 07:55:02,2022-03-21 07:46:11
+engine,holdout,1,48,task_3,easy,1.0,0,4.56,0,0,engine_only,Low,2.0,productcatalogservice; checkoutservice,
+engine,holdout,1,51,task_6,middle,0.5,0,6.1,0,0,engine_only,Medium,2.0,node-6; node memory consumption,node disk space consumption; node-4
+engine,holdout,1,59,task_7,hard,0.0,0,7.51,0,0,engine_only,High,1.0,,2022-03-21 15:45:31; container packet loss; cartservice
+engine,holdout,1,60,task_2,easy,1.0,0,7.8,0,0,engine_only,Low,1.0,container read I/O load,
+engine,holdout,1,62,task_1,easy,1.0,0,8.61,0,0,engine_only,Low,1.0,2022-03-21 20:26:07,
+engine,holdout,1,63,task_4,middle,0.0,0,6.4,0,0,engine_only,Low,1.0,,node memory consumption; 2022-03-21 21:52:20
+engine,holdout,1,69,task_2,easy,0.5,0,4.42,0,0,engine_only,Medium,2.0,node disk write I/O consumption,container process termination
+heuristic,dev_tune,1,0,task_6,middle,0.0,0,5.37,0,0,,,,,shippingservice-1; container read I/O load
+heuristic,dev_tune,1,1,task_1,easy,0.0,0,1.83,0,0,,,,,2022-03-20 09:54:59
+heuristic,dev_tune,1,2,task_1,easy,1.0,0,1.86,0,0,,,,2022-03-20 10:25:33,
+heuristic,dev_tune,1,3,task_6,middle,0.0,0,1.8,0,0,,,,,node-1; node memory consumption
+heuristic,dev_tune,1,4,task_3,easy,0.0,0,1.85,0,0,,,,,shippingservice-1
+heuristic,dev_tune,1,5,task_2,easy,0.0,0,1.8,0,0,,,,,container network packet corruption
+heuristic,dev_tune,1,7,task_6,middle,0.25,0,1.82,0,0,,,,container CPU load,recommendationservice; node disk read I/O consumption; node-1
+heuristic,dev_tune,1,8,task_5,middle,0.0,0,1.86,0,0,,,,,2022-03-20 13:13:19; node-2
+heuristic,dev_tune,1,10,task_1,easy,0.0,0,1.81,0,0,,,,,2022-03-20 13:51:51; 2022-03-20 13:39:48
+heuristic,dev_tune,1,11,task_1,easy,0.0,0,1.86,0,0,,,,,2022-03-20 14:23:15; 2022-03-20 14:14:46
+heuristic,dev_tune,1,12,task_2,easy,0.0,0,0.02,0,0,,,,,container network packet retransmission
+heuristic,dev_tune,1,13,task_5,middle,0.0,0,0.02,0,0,,,,,2022-03-20 16:31:44; currencyservice-0
+heuristic,dev_tune,1,14,task_5,middle,0.0,0,0.03,0,0,,,,,paymentservice; 2022-03-20 17:23:19; 2022-03-20 17:12:41; node-4
+heuristic,dev_tune,1,15,task_1,easy,0.0,0,0.02,0,0,,,,,2022-03-20 17:40:22
+heuristic,dev_tune,1,16,task_5,middle,0.0,0,0.02,0,0,,,,,paymentservice; 2022-03-20 18:06:48; 2022-03-20 18:24:06; emailservice
+heuristic,dev_tune,1,17,task_2,easy,0.0,0,0.02,0,0,,,,,container network packet corruption; container memory load
+heuristic,dev_tune,1,18,task_6,middle,0.0,0,0.02,0,0,,,,,frontend-2; container network packet retransmission
+heuristic,dev_tune,1,20,task_6,middle,0.0,0,0.02,0,0,,,,,shippingservice2-0; container CPU load
+heuristic,dev_tune,1,22,task_4,middle,0.0,0,0.02,0,0,,,,,2022-03-20 21:30:16; node disk space consumption; container memory load; 2022-03-20 21:52:17
+heuristic,dev_tune,1,25,task_7,hard,0.0,0,0.02,0,0,,,,,checkoutservice-2; 2022-03-20 23:09:26; container memory load
+heuristic,dev_tune,1,26,task_7,hard,0.0,0,0.02,0,0,,,,,2022-03-20 23:30:10; container CPU load; productcatalogservice
+heuristic,dev_tune,1,29,task_6,middle,0.0,0,0.02,0,0,,,,,frontend-1; container network latency
+heuristic,dev_tune,1,31,task_2,easy,0.0,0,1.82,0,0,,,,,container CPU load; container process termination
+heuristic,dev_tune,1,32,task_2,easy,0.0,0,1.85,0,0,,,,,container process termination
+heuristic,dev_tune,1,34,task_1,easy,0.5,0,4.36,0,0,,,,2022-03-21 01:06:45,2022-03-21 01:20:30
+heuristic,dev_tune,1,37,task_3,easy,0.0,0,1.85,0,0,,,,,recommendationservice; node-5
+heuristic,dev_tune,1,38,task_7,hard,0.33,0,1.82,0,0,,,,node-6,node disk write I/O consumption; 2022-03-21 03:39:14
+heuristic,dev_tune,1,39,task_4,middle,0.0,0,2.05,0,0,,,,,container network packet retransmission; 2022-03-21 04:32:44
+heuristic,dev_tune,1,40,task_5,middle,0.0,0,2.9,0,0,,,,,2022-03-21 05:15:49; node-4
+heuristic,dev_tune,1,42,task_4,middle,0.0,0,3.14,0,0,,,,,2022-03-21 07:26:56; container read I/O load
+heuristic,dev_tune,1,44,task_7,hard,0.0,0,3.12,0,0,,,,,productcatalogservice-0; 2022-03-21 07:55:02; node disk read I/O consumption; container CPU load; node-6; 2022-03-21 07:46:11
+heuristic,dev_tune,1,45,task_6,middle,0.5,0,3.12,0,0,,,,container CPU load,shippingservice-1
+heuristic,dev_tune,1,46,task_5,middle,0.0,0,3.02,0,0,,,,,node-1; 2022-03-21 08:52:45
+heuristic,dev_tune,1,47,task_7,hard,0.17,0,2.44,0,0,,,,container CPU load,2022-03-21 09:06:25; checkoutservice; productcatalogservice; container memory load; 2022-03-21 09:26:30
+heuristic,dev_tune,1,49,task_5,middle,0.0,0,2.0,0,0,,,,,2022-03-21 09:53:57; shippingservice
+heuristic,dev_tune,1,50,task_2,easy,0.0,0,2.75,0,0,,,,,node CPU spike
+heuristic,dev_tune,1,52,task_1,easy,0.0,0,2.91,0,0,,,,,2022-03-21 10:37:56; 2022-03-21 10:44:52
+heuristic,dev_tune,1,53,task_1,easy,0.0,0,2.79,0,0,,,,,2022-03-21 11:40:30
+heuristic,dev_tune,1,54,task_6,middle,0.0,0,2.72,0,0,,,,,currencyservice; container memory load
+heuristic,dev_tune,1,55,task_2,easy,0.0,0,2.61,0,0,,,,,container write I/O load; container read I/O load
+heuristic,dev_tune,1,56,task_7,hard,0.0,0,2.64,0,0,,,,,container write I/O load; 2022-03-21 14:08:21; emailservice; 2022-03-21 14:16:53; container read I/O load
+heuristic,dev_tune,1,57,task_3,easy,0.0,0,2.57,0,0,,,,,adservice
+heuristic,dev_tune,1,58,task_1,easy,0.0,0,2.57,0,0,,,,,2022-03-21 15:08:39
+heuristic,dev_tune,1,61,task_7,hard,0.0,0,0.02,0,0,,,,,node disk space consumption; node-5; 2022-03-21 16:41:47
+heuristic,dev_tune,1,64,task_3,easy,0.0,0,0.03,0,0,,,,,node-5
+heuristic,dev_tune,1,65,task_4,middle,0.0,0,0.03,0,0,,,,,node disk space consumption; 2022-03-21 23:15:29
+heuristic,dev_tune,1,66,task_6,middle,0.0,0,0.03,0,0,,,,,node CPU load; node-4
+heuristic,dev_tune,1,67,task_7,hard,0.0,0,2.68,0,0,,,,,2022-03-21 03:10:48; container network packet corruption; checkoutservice
+heuristic,dev_tune,1,68,task_3,easy,0.0,0,2.57,0,0,,,,,productcatalogservice
+heuristic,holdout,1,6,task_6,middle,0.25,0,4.96,0,0,,,,container CPU load,node-1; node disk read I/O consumption; recommendationservice
+heuristic,holdout,1,9,task_4,middle,0.5,0,2.59,0,0,,,,node CPU load; node CPU load,2022-03-20 13:39:48; 2022-03-20 13:51:51
+heuristic,holdout,1,19,task_6,middle,0.0,0,0.03,0,0,,,,,node-4; node disk read I/O consumption
+heuristic,holdout,1,21,task_5,middle,0.0,0,0.03,0,0,,,,,emailservice; 2022-03-20 21:16:21
+heuristic,holdout,1,23,task_5,middle,0.0,0,0.03,0,0,,,,,cartservice-0; 2022-03-20 21:30:16; 2022-03-20 21:52:17; node-1
+heuristic,holdout,1,24,task_3,easy,0.0,0,0.03,0,0,,,,,node-3
+heuristic,holdout,1,27,task_7,hard,0.33,0,2.65,0,0,,,,container network latency; container network latency,adservice; 2022-03-20 08:39:11; 2022-03-20 08:48:49; cartservice
+heuristic,holdout,1,28,task_2,easy,1.0,0,2.68,0,0,,,,container network latency; container network latency,
+heuristic,holdout,1,30,task_3,easy,0.0,0,0.03,0,0,,,,,node-4; paymentservice
+heuristic,holdout,1,33,task_7,hard,0.0,0,6.33,0,0,,,,,2022-03-21 00:37:25; cartservice; container network packet retransmission
+heuristic,holdout,1,35,task_4,middle,0.25,0,2.79,0,0,,,,2022-03-21 01:06:45,container read I/O load; 2022-03-21 01:20:30; container network packet retransmission
+heuristic,holdout,1,36,task_5,middle,0.0,0,2.58,0,0,,,,,node-5; 2022-03-21 01:44:35
+heuristic,holdout,1,41,task_1,easy,0.0,0,2.56,0,0,,,,,2022-03-21 05:36:03
+heuristic,holdout,1,43,task_1,easy,0.0,0,2.57,0,0,,,,,2022-03-21 07:55:02; 2022-03-21 07:46:11
+heuristic,holdout,1,48,task_3,easy,0.0,0,2.59,0,0,,,,,checkoutservice; productcatalogservice
+heuristic,holdout,1,51,task_6,middle,0.0,0,2.56,0,0,,,,,node-4; node disk space consumption; node-6; node memory consumption
+heuristic,holdout,1,59,task_7,hard,0.0,0,2.6,0,0,,,,,container packet loss; cartservice; 2022-03-21 15:45:31
+heuristic,holdout,1,60,task_2,easy,0.0,0,0.03,0,0,,,,,container read I/O load
+heuristic,holdout,1,62,task_1,easy,0.0,0,0.03,0,0,,,,,2022-03-21 20:26:07
+heuristic,holdout,1,63,task_4,middle,0.0,0,0.03,0,0,,,,,2022-03-21 21:52:20; node memory consumption
+heuristic,holdout,1,69,task_2,easy,0.0,0,2.6,0,0,,,,,node disk write I/O consumption; container process termination
