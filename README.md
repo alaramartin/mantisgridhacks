@@ -1,0 +1,115 @@
+# ORIGIN — Track 1 — Root Cause Analysis
+
+> **MantisGrid AI Hackathon, 17 September 2026 · Track 1 — Root Cause Analysis**
+> An RCA agent whose evidence cannot lie, and which only pays for reasoning when the data is ambiguous.
+
+Most agents dump telemetry into a model and ask what broke. ORIGIN reads only the failure window,
+rebuilds who-runs-on-what and who-calls-whom from the telemetry itself, and lets a deterministic
+engine rank the legal suspects. It spends model tokens only when the evidence is ambiguous: a cheap
+GLM first, a strong one only when they disagree. Every number in its explanation is copied from the
+raw data with the file and timestamp, so an on-call engineer can check it in seconds. It always
+guesses, and says plainly how sure it is.
+
+<!-- P2: drop the headline numbers in once the holdout run lands. Keep them holdout, not dev-tune. -->
+**Headline results (holdout, 21 unseen cases):** _TODO P2_ — routed `<score> (± <sd>)` ·
+single-model `<score>` · engine-only `<score>` · starter heuristic `<score>`, at `$<x>/case` and
+`<y>s/case`. Full write-up and the negative results in [REPORT.md](REPORT.md).
+
+## How it works
+
+```
+0 parse the case   window (UTC+8), how many failures, which fields are asked
+1 load the window  only [window start - 60 min, window end], out of 12 GB of CSV
+2 signals          which series and trace edges left their normal range, and when
+3 candidates       rank the legal suspects, causal filter, legal reasons, render facts
+4 route            gate (no model) -> GLM-4.7-Flash -> GLM-5.2 only on escalation
+5 validate         legal component, legal reason, exact count, time from the data
+6 render           predictions.csv + evidence/<row_id>.md
+```
+
+Three ideas, each measurable:
+
+1. **The LLM chooses; the engine adjudicates.** Models pick among structurally legal candidates by
+   fact ID. They never write a timestamp, a number, a component name outside the data, or a reason
+   outside the 15 legal ones. The validator enforces that and falls back to the engine's answer.
+2. **Evidence is rendered from data, not written by a model.** Every fact carries its file,
+   `cmdb_id`, KPI and epoch timestamp; raw values are cut rather than rounded so a `grep` still
+   matches. Any number in model prose that is not in the fact sheet removes that prose.
+3. **A confidence gate.** When the engine's margin is large, no model is called at all — 4 of 20
+   cases in our Docker run. Otherwise Flash decides, and GLM-5.2 only on disagreement, low margin,
+   several failures or a hard task.
+
+The model never sees raw telemetry — only a fact sheet of ≤ 40 facts (~4–6 K tokens), against the
+474 K input tokens a "typical case" would cost by reading the window
+([docs/models.md](docs/models.md)).
+
+![what "outside its normal range" means](docs/figures/signal.png)
+
+![topology rebuilt from the telemetry alone](docs/figures/topology.png)
+
+## How to run
+
+```sh
+pip install -r requirements.txt          # pandas, numpy, openai
+make data                                # downloads Market-cloudbed-1 into data/ (1.3 GB -> ~12 GB)
+export FEATHERLESS_API_KEY=...           # nothing in this repo reads .env for you:
+                                         #   set -a; . ./.env; set +a   also works
+make validate                            # our agent on 2 cases + output-shape check
+make dev && make score                   # all 70 dev cases, then score them (make dev N=20 for 20)
+make cost OUT=out/dev                    # dollars per case and per model
+make docker                              # exactly as the judges run it: 2 CPU / 8 GB, 2 cases
+```
+
+Evals and one case at a time:
+
+```sh
+python -m eval.run_eval --config routed --split holdout --repeat 3
+python -m eval.run_eval --config engine --split dev_tune          # free, no model calls
+python -m origin.engine --row 38                                  # candidates, facts, ruled out
+python scripts/make_figures.py --row 38                            # regenerate docs/figures/*.png
+```
+
+## What's in here
+
+| Path | What |
+|---|---|
+| `agents/origin.py` | the submitted agent: budget, gate, router, validator, confidence, evidence |
+| `origin/` | `case` `timeslice` `load` `anomaly` `signals` `candidates` `facts` `engine` · `router` `validate` `evidence` |
+| `eval/` | `split.py`, the committed split, `run_eval.py`, `summarize.py`, results |
+| `REPORT.md` | the eval write-up: routed vs single model, taxonomy, calibration, tuning log |
+| `docs/engine-tuning.md` | every parameter change, with the dev-tune number before and after |
+| `docs/data-notes.md` | the dataset's traps, measured on the real files |
+| `docs/walkthrough.md` | how each half works, in plain language |
+| `run.py` `llm.py` `cost.py` `score.py` `Dockerfile` `Makefile` | MantisGrid's starter (see Attribution) |
+
+## Evaluation, briefly
+
+70 dev cases split **49 dev-tune / 21 holdout**, stratified 3 per task type, fixed by `row_id` in
+`eval/splits/split.json` before any run (rule: `md5(row_id)` order — deterministic, reproducible).
+**Nothing was tuned on the holdout**: every parameter change came from dev-tune results and is logged
+in `docs/engine-tuning.md`. Configurations compared: `routed` (submitted), `single-flash`,
+`single-strong`, `engine` (no model calls), and the starter `heuristic` floor.
+<!-- P2: mention repeats + variance here, and the abstention/calibration framing scoring.md asks for -->
+
+## AI disclosure
+
+<!-- P2 owns this section: pull it from docs/ai-use.md. It is a submission requirement
+     (Agreement §5 / docs/submission.md), so it cannot ship as a TODO. Needs:
+       - product models: GLM family on Featherless, chosen per call (list which, and where each is used)
+       - coding assistants each person used, by name
+       - agent frameworks: none (plain OpenAI SDK)
+       - what was AI-generated vs team-written, per module
+       - that using AI heavily is expected; not disclosing it is the problem -->
+_TODO P2 — from [docs/ai-use.md](docs/ai-use.md)._
+
+## Attribution
+
+- **Starter code** — `run.py`, `llm.py`, `cost.py`, `score.py`, `Dockerfile`, `Makefile`,
+  `scripts/validate_submission.py`, `agents/heuristic.py`, `agents/routed.py` are MantisGrid's
+  hackathon starter, used under [`LICENSE-MANTISGRID`](LICENSE-MANTISGRID). One starter file was
+  patched: `llm.py` reads the answer from `message.reasoning` as well as `message.content`, because
+  the GLM Flash models return it there (see `docs/model-findings.md`).
+- **`score.py`** vendors OpenRCA's own evaluator, unchanged (MIT).
+- **Data** — OpenRCA `Market-cloudbed-1`, CC BY-NC 4.0, **not included** in this repository. See
+  [`ATTRIBUTION.md`](ATTRIBUTION.md) and `docs/GET_DATA.md`.
+- Everything else was written by the team today.
