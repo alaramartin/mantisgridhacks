@@ -139,6 +139,66 @@ def fig_topology(a, w, out: Path) -> None:
     fig.tight_layout(); fig.savefig(out, bbox_inches="tight"); plt.close(fig)
 
 
+def fig_pipeline(out: Path) -> None:
+    """The pipeline as a slide-sized flowchart. Architecture only, no data.
+    Box widths are computed from the text so nothing overflows."""
+    from matplotlib.patches import FancyBboxPatch
+    fig, ax = plt.subplots(figsize=(14.5, 3.8))
+    UPP = 0.085           # data units per character at fontsize 9.5, empirical
+
+    def wide(text: str, pad: float = 0.9) -> float:
+        return max(len(line) for line in text.split("\n")) * UPP + pad
+
+    def box(x, y, text, col, fill, h=0.95, fs=9.5, pad=0.9):
+        w = wide(text, pad)
+        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.05", fc=fill, ec=col,
+                                    lw=1.3, zorder=2))
+        ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=fs, color=col, zorder=3)
+        return x + w
+
+    def arrow(x0, x1, y, col=MUTE):
+        ax.annotate("", xy=(x1, y), xytext=(x0, y), arrowprops=dict(arrowstyle="-|>", color=col, lw=1.3))
+
+    y0, GAP = 1.35, 0.6
+    x = 0.0
+    for i, text in enumerate(("Case\nwindow + count", "Load only\nthe window",
+                              "Engine\nanomalies · onsets\ntopology · traces",
+                              "Candidates\n+ facts F1…Fn")):
+        if i:
+            arrow(x - GAP + 0.08, x - 0.08, y0 + 0.475)
+        x = box(x, y0, text, INK, "#f4f6f8") + GAP
+
+    gx, gy, gw, gh = x + 0.95, y0 + 0.475, 0.95, 0.6
+    arrow(x - GAP + 0.08, gx - gw - 0.06, gy)
+    ax.plot([gx, gx + gw, gx, gx - gw, gx], [gy + gh, gy, gy - gh, gy, gy + gh], color=OK2, lw=1.4, zorder=2)
+    ax.text(gx, gy, "clear\nwinner?", ha="center", va="center", fontsize=9.5, color=OK2, zorder=3)
+
+    branch_x = gx + 1.25                      # where both branches turn right
+    ytop, ybot = y0 + 1.5, y0 - 1.05
+    for yy, col, label, va in ((ytop, OK2, "yes  ·  4 of 20 cases", "bottom"),
+                               (ybot, HL, "no", "top")):
+        ax.plot([gx, gx, branch_x], [gy + (gh if yy > gy else -gh), yy + 0.3, yy + 0.3], color=col, lw=1.4, zorder=1)
+        ax.annotate("", xy=(branch_x + 0.12, yy + 0.3), xytext=(branch_x, yy + 0.3),
+                    arrowprops=dict(arrowstyle="-|>", color=col, lw=1.4))
+        ax.text(gx + 0.14, yy + 0.3 + (0.52 if va == "bottom" else -0.42), label,
+                fontsize=9.5, color=col, fontweight="bold", va=va)
+
+    box(branch_x + 0.2, ytop, "answer — no model call, zero tokens", OK2, "#eaf3ee", h=0.6, pad=1.4)
+
+    xe = box(branch_x + 0.2, ybot, "cheap GLM · Flash", HL, "#fbeeec", h=0.6)
+    arrow(xe + 0.1, xe + 1.5, ybot + 0.3, HL)
+    ax.text(xe + 0.8, ybot + 0.72, "disagrees / low margin", fontsize=7.8, color=MUTE, ha="center")
+    xe = box(xe + 1.6, ybot, "strong GLM · 5.2", HL, "#fbeeec", h=0.6)
+    arrow(xe + 0.1, xe + 0.72, ybot + 0.3)
+    xe = box(xe + 0.82, ybot, "validator — legal · count\ntime from the data", INK, "#f4f6f8", h=0.6, fs=9, pad=1.1)
+
+    ax.text(0, 0.0, "The model never sees telemetry — only ≤ 40 facts, ~7 K tokens, against 474 K to read "
+                    "the window.\nIt picks among candidates the data already supports; it never writes a "
+                    "number, a name or a time.", fontsize=10.5, color=MUTE, va="top")
+    ax.set_xlim(-0.3, xe + 0.4); ax.set_ylim(-1.05, ytop + 0.95); ax.axis("off")
+    fig.tight_layout(); fig.savefig(out, bbox_inches="tight"); plt.close(fig)
+
+
 def fig_cost(runs: Path, out: Path) -> None:
     """Panel 3: the accuracy-vs-cost curve, from eval/results/runs.csv (holdout rows if present)."""
     if not runs.exists():
@@ -174,6 +234,7 @@ def main() -> None:
     instr = q[q.row_id == args.row].instruction.iloc[0]
     a = analyze(instr, Path(args.dataset))
     w = load_window(parse_instruction(instr), Path(args.dataset))
+    fig_pipeline(OUT / "pipeline.png")
     fig_signal(a, w, OUT / "signal.png")
     fig_topology(a, w, OUT / "topology.png")
     fig_cost(ROOT / "eval" / "results" / "runs.csv", OUT / "cost.png")
