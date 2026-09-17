@@ -1787,6 +1787,25 @@ Update this on `main` after each merge so the humans can `/clear` and resume.
     P1's test, P1's threshold — but note our `CASE_SOFT_DEADLINE_S` is 45 s and a cold day plus a
     strong call is already 35 + 24 s.
 - [ ] Checkpoint 4 — docker + final eval (1:45)
+  - **Docker gate already measured on P1's Mac, keyed, with the real default agent (`agents.origin`,
+    `route` decided per case). This closes the CP3 gap; CP4 still owes the eval table.**
+    | measurement | result | limit |
+    |---|---|---|
+    | 2-case `make docker` | passes, 2 evidence files, real tokens | must pass |
+    | **20 cases, routed, in the container** | **5 min 54 s** (mean 17.6 s/case, max 37.7 s) | < 20 min |
+    | cases over our 45 s soft deadline | **0** | — |
+    | **peak memory** | **1.74 GiB** of 7.654 | < 3 GB target, 8 GB cap |
+    | **cost** | **$0.126 for 20 cases** ($0.0063/case, max $0.0112); GLM-5.2 is 95% of it | $25/run, $3/case |
+    | tokens | 7,451 in / 380 out per case | vs the 474 K "typical case" in docs/models.md |
+    | routes | **strong 16, gate 4**, flash-only 0, fallback 0, **0 cases with errors** | — |
+    | confidence | Low 15, High 4, Medium 1 | calibration input |
+    | image | 466 MB, builds in 20 s; writes only `/out`; `data/` out of the build context | — |
+    So the 20-minute run limit is not a risk (30% of it), and neither is the budget (0.5% of it).
+    P2's "cold load + escalation ≈ 51 s" worry does not reproduce in the container: the worst case was
+    37.7 s. The gate fires on 4/20, which is the number the routing breakdown needs.
+    **Caveat: that run used the first 20 rows of `dev/query_dev.csv`, which include 3 holdout row_ids
+    (6, 9, 19), so it is a timing / cost / routing measurement only — it was deliberately NOT scored and
+    no per-case result was opened. Score the holdout once, with `eval/run_eval.py`, at CP4.**
   - Holdout table (routed / single-strong / single-flash / engine / heuristic):
   - Docker 20-case time and peak memory:
   - Demo case row_id:
