@@ -355,6 +355,7 @@ def route(a: Analysis, llm, mode: str, deadline: float) -> dict:
         return d
 
     # --- duel: one cheap call, two candidates, only when the engine is shaky ---
+    # agents/origin.py turns this ON by default: it is the shipped configuration (see there).
     if os.environ.get("ORIGIN_DUEL"):
         # Multi-failure cases do not duel: a duel is a two-way choice for ONE
         # answer, and there is no version of it that picks n distinct culprits.

@@ -18,7 +18,8 @@ Three things this file is responsible for and nothing else is:
     exception that escapes here scores zero for the case. Every failure path
     still emits `n` objects and says in the evidence that it is guessing.
 
-`ORIGIN_MODE` = routed (default) | engine | single. `ORIGIN_FIXTURE=1` swaps the
+`ORIGIN_MODE` = routed (default; duel-restricted, see origin/router.py) | engine | single.
+`ORIGIN_NO_DUEL=1` restores unrestricted escalation. `ORIGIN_FIXTURE=1` swaps the
 engine for `origin/fixture.py` (PLACEHOLDER, until CP3).
 """
 from __future__ import annotations
@@ -75,6 +76,22 @@ def analyze(instruction: str, dataset_dir: Path, deadline: float):
 # --- Phase 3 modules. Until they land, degrade to the engine's own answer. -----
 
 def _route(a, llm, mode: str, deadline: float) -> dict:
+    """SHIPPED DEFAULT: duel-restricted routing. On the 21-case holdout it scores exactly what the
+    engine alone scores (0.5238 partial, 7/21 strict) for $0.000063 a case, while unrestricted
+    escalation to GLM-5.2 cost 0.107 partial and two cases at $0.0073 -- so a model is consulted
+    only where the engine is genuinely torn, and only between its top two candidates.
+    ORIGIN_NO_DUEL=1 restores unrestricted escalation (the `routed` eval config). The flag is set
+    around this call only: mutating os.environ for the process leaks into other runs and tests."""
+    if not os.environ.get("ORIGIN_NO_DUEL") and not os.environ.get("ORIGIN_DUEL"):
+        os.environ["ORIGIN_DUEL"] = "1"
+        try:
+            return _route_inner(a, llm, mode, deadline)
+        finally:
+            os.environ.pop("ORIGIN_DUEL", None)
+    return _route_inner(a, llm, mode, deadline)
+
+
+def _route_inner(a, llm, mode: str, deadline: float) -> dict:
     try:
         from origin.router import route
     except ImportError:

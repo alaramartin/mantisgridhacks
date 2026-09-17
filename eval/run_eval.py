@@ -52,7 +52,9 @@ CONFIGS: dict[str, dict] = {
                                                         "RCA_MODEL": "zai-org/GLM-4.7-Flash"}},
     "single-strong": {"agent": "agents.origin", "env": {"ORIGIN_MODE": "single",
                                                         "RCA_MODEL": "zai-org/GLM-5.2"}},
-    "routed":        {"agent": "agents.origin", "env": {"ORIGIN_MODE": "routed"}},
+    # the shipped default is duel-restricted, so `routed` must switch it OFF explicitly
+    "routed":        {"agent": "agents.origin", "env": {"ORIGIN_MODE": "routed",
+                                                        "ORIGIN_NO_DUEL": "1"}},
     # the gate as designed: escalate on ambiguity only, not because the question
     # happens to ask for all three fields (which nearly every task does)
     # gate -> Flash, never escalate: the strong tier is where the accuracy went
