@@ -593,3 +593,24 @@ routed,holdout,1,60,task_2,,1.0,0.007124,9.39,,,strong,Low,1.0,,
 routed,holdout,1,62,task_1,,0.0,0.008564,7.95,,,strong,Low,1.0,,
 routed,holdout,1,63,task_4,,0.0,0.005443,10.78,,,strong,Low,1.0,,
 routed,holdout,1,69,task_2,,0.5,0.009112,14.72,,,strong,Medium,2.0,,
+routed-duel,holdout,1,6,task_6,middle,0.5,0.0,17.8,0.0,0.0,engine_only,Low,2.0,recommendationservice; container CPU load,node disk read I/O consumption; node-1
+routed-duel,holdout,1,9,task_4,middle,0.75,0.0,4.21,0.0,0.0,engine_only,Low,2.0,2022-03-20 13:39:48; node CPU load; 2022-03-20 13:51:51,
+routed-duel,holdout,1,19,task_6,middle,0.0,0.0,4.96,0.0,0.0,gate,High,1.0,,node-4; node disk read I/O consumption
+routed-duel,holdout,1,21,task_5,middle,0.0,0.000363,9.36,4904.0,110.0,duel,Low,1.0,,2022-03-20 21:16:21; emailservice
+routed-duel,holdout,1,23,task_5,middle,0.5,0.0,3.73,0.0,0.0,engine_only,Low,2.0,cartservice-0; 2022-03-20 21:30:16,2022-03-20 21:52:17; node-1
+routed-duel,holdout,1,24,task_3,easy,0.0,0.0,2.61,0.0,0.0,gate,Medium,1.0,,node-3
+routed-duel,holdout,1,27,task_7,hard,1.0,0.0,2.63,0.0,0.0,engine_only,Low,2.0,adservice; container network latency; 2022-03-20 08:48:49; cartservice; container network latency; 2022-03-20 08:39:11,
+routed-duel,holdout,1,28,task_2,easy,1.0,0.0,2.13,0.0,0.0,engine_only,Low,2.0,container network latency; container network latency,
+routed-duel,holdout,1,30,task_3,easy,1.0,0.0,4.34,0.0,0.0,engine_only,Low,2.0,node-4; paymentservice,
+routed-duel,holdout,1,33,task_7,hard,0.0,0.0,18.71,0.0,0.0,gate,Medium,1.0,,cartservice; 2022-03-21 00:37:25; container network packet retransmission
+routed-duel,holdout,1,35,task_4,middle,0.75,0.0,3.09,0.0,0.0,engine_only,High,2.0,2022-03-21 01:06:45; container read I/O load; 2022-03-21 01:20:30,container network packet retransmission
+routed-duel,holdout,1,36,task_5,middle,1.0,0.000173,9.27,1780.0,144.0,duel,Low,1.0,node-5; 2022-03-21 01:44:35,
+routed-duel,holdout,1,41,task_1,easy,0.0,0.000189,8.7,2130.0,126.0,engine_only,Low,1.0,,2022-03-21 05:36:03
+routed-duel,holdout,1,43,task_1,easy,0.5,0.0,2.48,0.0,0.0,engine_only,High,2.0,2022-03-21 07:55:02,2022-03-21 07:46:11
+routed-duel,holdout,1,48,task_3,easy,1.0,0.0,2.46,0.0,0.0,engine_only,Low,2.0,productcatalogservice; checkoutservice,
+routed-duel,holdout,1,51,task_6,middle,0.5,0.0,3.51,0.0,0.0,engine_only,Medium,2.0,node-6; node memory consumption,node disk space consumption; node-4
+routed-duel,holdout,1,59,task_7,hard,0.0,0.0,6.08,0.0,0.0,gate,High,1.0,,cartservice; 2022-03-21 15:45:31; container packet loss
+routed-duel,holdout,1,60,task_2,easy,0.0,0.000216,11.69,2547.0,126.0,duel,Low,1.0,,container read I/O load
+routed-duel,holdout,1,62,task_1,easy,1.0,0.000252,9.12,2953.0,149.0,duel,Low,1.0,2022-03-21 20:26:07,
+routed-duel,holdout,1,63,task_4,middle,1.0,0.000127,7.46,1111.0,136.0,duel,Low,1.0,node memory consumption; 2022-03-21 21:52:20,
+routed-duel,holdout,1,69,task_2,easy,0.5,0.0,3.52,0.0,0.0,engine_only,Medium,2.0,node disk write I/O consumption,container process termination
