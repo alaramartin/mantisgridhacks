@@ -93,14 +93,43 @@ in `docs/engine-tuning.md`. Configurations compared: `routed` (submitted), `sing
 
 ## AI disclosure
 
-<!-- P2 owns this section: pull it from docs/ai-use.md. It is a submission requirement
-     (Agreement §5 / docs/submission.md), so it cannot ship as a TODO. Needs:
-       - product models: GLM family on Featherless, chosen per call (list which, and where each is used)
-       - coding assistants each person used, by name
-       - agent frameworks: none (plain OpenAI SDK)
-       - what was AI-generated vs team-written, per module
-       - that using AI heavily is expected; not disclosing it is the problem -->
-_TODO P2 — from [docs/ai-use.md](docs/ai-use.md)._
+Using AI heavily is expected here; not disclosing it is the problem
+([Agreement §5](docs/PARTICIPANT_AGREEMENT.md)). The full log, per module, is
+[`docs/ai-use.md`](docs/ai-use.md).
+
+**Models inside the product.** Only the **GLM family on Featherless**, chosen per call:
+`GLM-4.7-Flash` (fallback `GLM-5.3-Flash`) for the routine pick over the engine's candidate list,
+`GLM-5.2` (fallback `GLM-5.1`) only on escalation, and **no model at all** on cases the confidence
+gate settles — 4 of 20 in our Docker run. Thinking is off on every call, measured (see
+`docs/model-findings.md`). No other network access at judged runtime.
+
+**Agent frameworks.** None. Plain Python on the OpenAI SDK through the starter's `llm.py` wrapper.
+No LangChain, no agent framework, no tool-calling loop. Runtime dependencies are `pandas`, `numpy`,
+`openai`.
+
+**How this project was built.** *Ideation was human*, with AI as a sounding board: the problem
+framing, the architecture (a deterministic engine that adjudicates, with models choosing among
+legal candidates), the priorities and the cut order were the team's decisions, written up in
+`SPEC.md` and `PLAN.md` before any code. *Execution was with coding agents* — **Claude Code
+(Claude Opus 5)**, used by both team members, wrote most of the code in this repository from those
+specs, under human direction and review.
+
+What that means honestly, module by module (details in `docs/ai-use.md`):
+
+- **AI-generated from our specs, human-reviewed:** `origin/` (loader, signals, candidates, facts,
+  engine, anomaly, router, validate, evidence), `agents/origin.py`, `eval/`, the figures script,
+  and the documents in `docs/` that we wrote ourselves.
+- **Team-written:** the shared contract and parameter values (`origin/contract.py`,
+  `origin/config.py`, typed from the plan), and every decision about *what* to build, *what to cut*,
+  and *which measurements to trust*.
+- **Not ours:** the starter files listed under Attribution.
+- **Derived from data rather than written by anyone:** the engine rules that differ from the plan —
+  the two anomaly guards, service-level candidates, the node-is-a-symptom rule, the magnitude rules,
+  damage-vs-delay, the onset shift. Each came from reading real output on the dev-tune split and each
+  is logged with its before/after number in [`docs/engine-tuning.md`](docs/engine-tuning.md), with
+  per-method sources in [`docs/engine-provenance.md`](docs/engine-provenance.md).
+
+Every AI-generated line was read by a human before commit. The team is responsible for all of it.
 
 ## Attribution
 
