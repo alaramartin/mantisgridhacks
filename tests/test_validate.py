@@ -177,3 +177,16 @@ def test_reason_only_mode_is_off_by_default():
     answers, _, _ = validate(a, decision(picks=[
         {"cid": "C3", "reason": "container network latency", "fact_ids": []}]))
     assert answers[0]["component"] == "checkoutservice-2"
+
+
+def test_reason_only_pins_every_answer_not_just_the_first(monkeypatch):
+    """Two of the six holdout losses were multi-failure cases where the model
+    kept answer 1 and wrecked answer 2, so pinning only the top would miss them."""
+    monkeypatch.setenv("ORIGIN_REASON_ONLY", "1")
+    a = make_analysis(n_failures=2)
+    engine_components = [x["component"] for x in a.engine_answers]
+    answers, _, notes = validate(a, decision(picks=[
+        {"cid": "C3", "reason": "container network latency", "fact_ids": []},
+        {"cid": "C4", "reason": "container network latency", "fact_ids": []}]))
+    assert [x["component"] for x in answers] == engine_components
+    assert sum("reason-only mode" in n for n in notes) == 2

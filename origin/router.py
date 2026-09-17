@@ -46,14 +46,31 @@ Reply with JSON only, no prose:
 SECOND_OPINION = ("\nA fast model picked: {picks}. The engine's top candidate is C1. "
                   "Decide independently.")
 
-# Measured on the holdout: the models match the engine on REASON (55.6% vs 55.6%)
-# but are worse at COMPONENT (44-48% vs 55.6%), and the time collapse (33% vs 53%)
-# is downstream of that, because the timestamp is derived from the chosen
-# component's signals. So give them only the half they are good at.
-REASON_ONLY = ('\nThe component is already decided: {cid} {component}. Do NOT choose a '
-               'different one -- answer with "candidate": "{cid}" every time. Your only '
-               'job is to pick the single most likely reason for {component} from the '
-               'legal list above.')
+# Reason-only mode. Two measurements drove this, both on the holdout:
+#
+#   * The models match the engine on REASON (55.6% vs 55.6%) and lose on COMPONENT
+#     (44-48% vs 55.6%). The time deficit (33% vs 53%) is downstream of the
+#     component, because the timestamp comes from the chosen component's signals.
+#   * Looking at the 8 cases where the model changed the answer, 4 of the 6 losses
+#     were the model moving off a correct NODE onto a pod, twice landing on
+#     "container network latency". The default PROMPT is why: it tells the model
+#     the loudest component is often a victim and to prefer one whose dependencies
+#     were normal -- which is the causal filter the engine has ALREADY applied. So
+#     the model demotes a second time and walks past the right answer.
+#
+# This prompt therefore says nothing about victims, upstream causes or call graphs.
+# The component is settled; the job is to label it. Choosing the best-fitting label
+# from a fixed list, given a handful of measurements, is what the engine does with a
+# keyword regex and what a model should genuinely be better at.
+REASON_PROMPT = """A causal analysis has already determined the root cause component(s): {fixed}.
+That decision is final. Do not choose a different component and do not reason about
+which component is at fault.
+Your only job: for each one, choose the single reason from the legal list above that
+best matches ITS OWN measurements in the FACTS section.
+Reply with JSON only, no prose:
+{{"answers": [{{"candidate": "C<number>", "reason": "<one legal reason for that component's level>", "fact_ids": ["F<number>", ...]}}],
+ "confidence": "low" | "medium" | "high",
+ "why": "at most 2 sentences naming the facts you used; do not write any number that is not in the facts"}}"""
 
 
 # --- the fact sheet -----------------------------------------------------------
@@ -192,17 +209,38 @@ def _models_for(tier: list[str]) -> list[str]:
     return [os.environ["RCA_MODEL"]] if os.environ.get("RCA_MODEL") else list(tier)
 
 
-def _reason_only_suffix(a: Analysis) -> str:
+def pinned_cids(a: Analysis) -> list[str]:
+    """The engine's chosen candidate per answer slot, in its own order.
+
+    `engine_answers` is the engine's final pick list and carries the cid it came
+    from; the ranking is the fallback when it does not.
+    """
+    cids = [x.get("cid") for x in (a.engine_answers or []) if x.get("cid")]
+    if len(cids) < a.case.n_failures:
+        for c in a.candidates:
+            if c.cid not in cids:
+                cids.append(c.cid)
+            if len(cids) >= a.case.n_failures:
+                break
+    return cids[:max(1, a.case.n_failures)]
+
+
+def _reason_only_prompt(a: Analysis) -> str | None:
     if not os.environ.get("ORIGIN_REASON_ONLY") or not a.candidates:
-        return ""
-    top = a.candidates[0]
-    return REASON_ONLY.format(cid=top.cid, component=top.component)
+        return None
+    known = {c.cid: c for c in a.candidates}
+    fixed = ", ".join(f"{cid} {known[cid].component}"
+                      for cid in pinned_cids(a) if cid in known)
+    return REASON_PROMPT.format(fixed=fixed) if fixed else None
 
 
 def _call(llm, models, sheet: str, suffix: str, a: Analysis, max_tokens: int,
           thinking_off: bool) -> tuple[str, float]:
-    prompt = (sheet + "\n\n" + PROMPT.format(n=a.case.n_failures)
-              + _reason_only_suffix(a) + suffix)
+    # In reason-only mode the default PROMPT is replaced outright, not appended to:
+    # leaving its "prefer the component whose dependencies were normal" line in
+    # place is what made the model re-run the engine's causal filter.
+    body = _reason_only_prompt(a) or PROMPT.format(n=a.case.n_failures)
+    prompt = sheet + "\n\n" + body + suffix
     kwargs = {"max_tokens": max_tokens, "temperature": 0, "timeout": CALL_TIMEOUT_S}
     if thinking_off:
         kwargs["extra_body"] = THINKING_OFF

@@ -92,15 +92,20 @@ def validate(a: Analysis, d: dict) -> tuple[list[dict], str, list[str]]:
         # (44-48% vs 55.6%) -- so the engine keeps the component, the model keeps
         # the reason, and the timestamp (derived from the component's signals)
         # stays on the engine's side of the line too.
-        top = a.candidates[0]
+        from origin.router import pinned_cids
+        pins = pinned_cids(a)
         for i, pk in enumerate(picks[:n]):
-            if i == 0 and pk.get("cid") != top.cid:
-                was = known.get(pk.get("cid"))
+            # Every slot, not just the first. Two of the six holdout losses were
+            # multi-failure cases where the model kept answer 1 and wrecked
+            # answer 2 (row 48: it replaced a correct `checkoutservice` with
+            # `node-6`), so pinning only the top answer would have missed them.
+            if i < len(pins) and pk.get("cid") != pins[i]:
+                was, now = known.get(pk.get("cid")), known.get(pins[i])
                 notes.append(
-                    f"reason-only mode: kept the engine's {top.component} over the "
-                    f"model's {was.component if was else pk.get('cid')}; "
-                    f"took only its reason")
-                pk["cid"] = top.cid
+                    f"reason-only mode: answer {i + 1} kept the engine's "
+                    f"{now.component if now else pins[i]} over the model's "
+                    f"{was.component if was else pk.get('cid')}; took only its reason")
+                pk["cid"] = pins[i]
     if picks:
         used: set[str] = set()
         for p in picks[:n]:
