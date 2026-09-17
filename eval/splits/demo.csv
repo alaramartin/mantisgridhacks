@@ -1,0 +1,5 @@
+row_id,task_index,instruction,scoring_points
+38,task_7,"The cloud service system, cloudbed-1, experienced a failure within the time range of March 21, 2022, from 03:30 to 04:00. The detailed information about the failure, such as the root cause component, the exact time of occurrence, and the underlying reason, is currently unknown. You are tasked with identifying the root cause component, the root cause occurrence datetime, and the root cause reason.","The only root cause occurrence time is within 1 minutes (i.e., <=1min) of 2022-03-21 03:39:14
+The only predicted root cause component is node-6
+The only predicted root cause reason is node disk write I/O consumption
+"
