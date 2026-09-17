@@ -56,6 +56,11 @@ CONFIGS: dict[str, dict] = {
     # the gate as designed: escalate on ambiguity only, not because the question
     # happens to ask for all three fields (which nearly every task does)
     # gate -> Flash, never escalate: the strong tier is where the accuracy went
+    # ABLATION: the engine with its causal filter switched off. The filter is the
+    # one mechanism the official brief does not hand every team, so it needs a
+    # before/after number rather than an assertion. Free to run, no model calls.
+    "engine-nocausal": {"agent": "agents.origin", "env": {"ORIGIN_MODE": "engine",
+                                                          "ORIGIN_NO_CAUSAL": "1"}},
     # the model picks the REASON only; the engine keeps the component and,
     # through it, the timestamp
     "routed-reason": {"agent": "agents.origin", "env": {"ORIGIN_MODE": "routed",
