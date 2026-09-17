@@ -46,6 +46,15 @@ Reply with JSON only, no prose:
 SECOND_OPINION = ("\nA fast model picked: {picks}. The engine's top candidate is C1. "
                   "Decide independently.")
 
+# Measured on the holdout: the models match the engine on REASON (55.6% vs 55.6%)
+# but are worse at COMPONENT (44-48% vs 55.6%), and the time collapse (33% vs 53%)
+# is downstream of that, because the timestamp is derived from the chosen
+# component's signals. So give them only the half they are good at.
+REASON_ONLY = ('\nThe component is already decided: {cid} {component}. Do NOT choose a '
+               'different one -- answer with "candidate": "{cid}" every time. Your only '
+               'job is to pick the single most likely reason for {component} from the '
+               'legal list above.')
+
 
 # --- the fact sheet -----------------------------------------------------------
 
@@ -183,9 +192,17 @@ def _models_for(tier: list[str]) -> list[str]:
     return [os.environ["RCA_MODEL"]] if os.environ.get("RCA_MODEL") else list(tier)
 
 
+def _reason_only_suffix(a: Analysis) -> str:
+    if not os.environ.get("ORIGIN_REASON_ONLY") or not a.candidates:
+        return ""
+    top = a.candidates[0]
+    return REASON_ONLY.format(cid=top.cid, component=top.component)
+
+
 def _call(llm, models, sheet: str, suffix: str, a: Analysis, max_tokens: int,
           thinking_off: bool) -> tuple[str, float]:
-    prompt = sheet + "\n\n" + PROMPT.format(n=a.case.n_failures) + suffix
+    prompt = (sheet + "\n\n" + PROMPT.format(n=a.case.n_failures)
+              + _reason_only_suffix(a) + suffix)
     kwargs = {"max_tokens": max_tokens, "temperature": 0, "timeout": CALL_TIMEOUT_S}
     if thinking_off:
         kwargs["extra_body"] = THINKING_OFF
