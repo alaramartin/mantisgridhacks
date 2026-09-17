@@ -395,16 +395,18 @@ local stand-in in `tests/_p1_score_stub.py` with the same signature and keys
 
 ## Phase 1 — Push, data, traps, contract, parser (10:00–10:30, hard stop 10:30)
 
-- [ ] **Start the data download first (9:45).** `make data` from the repo root
+- [x] **Start the data download first (9:45).** `make data` from the repo root
       (1.3 GB zip → ~12 GB in `data/Market-cloudbed-1/`). It runs in the
       background while you do the next tasks. If Person 2 can't download, give
       them the zip by USB / AirDrop — don't make them wait on Wi-Fi.
-- [ ] **Push the bootstrap (by 10:05).** The planner already ran `git init`
+      > done. Unzipped everything **except `log_proxy.csv`** (6.5 GB, never read) because the laptop had ~15 GB free; the zip stays in `data/` if it is needed.
+- [x] **Push the bootstrap (by 10:05).** The planner already ran `git init`
       and committed. Ask the human to confirm the remote is empty and they're
       logged in to GitHub, then: `git push -u origin main`,
       `git checkout -b person1 && git push -u origin person1`. Tell the human
       "Person 2 can clone now."
-- [ ] **Contract + config (by 10:12).** Type §1 and §2 into
+      > done. `main` was already on the remote; `person1` created and pushed.
+- [x] **Contract + config (by 10:12).** Type §1 and §2 into
       `origin/contract.py` exactly (implement `fmt_ts` with
       `datetime.fromtimestamp(ts, tz=UTC8).strftime(TIME_FMT)`). Create
       `origin/__init__.py` (empty) and `origin/config.py`:
@@ -436,7 +438,8 @@ local stand-in in `tests/_p1_score_stub.py` with the same signature and keys
   ```
 
   Push these two files to `main` as well (the allowed direct commit) so Person 2 can import them.
-- [ ] **Verify the traps on real files (by 10:25).** Write
+      > done, typed exactly; committed to `main` (4f9a2e8) and pushed.
+- [x] **Verify the traps on real files (by 10:25).** Write
       `eval/verify_traps.py` (run with `python eval/verify_traps.py`) that
       prints evidence for each, and copy its output into `docs/data-notes.md`:
   1. **Headers and first rows** of every file in `telemetry/2022_03_20/{metric,log,trace}/`
@@ -468,7 +471,8 @@ local stand-in in `tests/_p1_score_stub.py` with the same signature and keys
      components look — `node-N`, pod (`name-N`), bare service (`name`), other —
      with counts, and the count of each reason. Do **not** copy component names
      into code.
-- [ ] **Case parser (by 10:30).** `origin/case.py` `parse_instruction()`:
+      > done; see `docs/data-notes.md`. UTC+8 yes (55/55 answer times in their windows). Trace duration is **µs**. Only `metric_node` is time-sorted; `trace_span` is ~10 time-sorted shards (seek per shard); metric_container/service are grouped by series (per-day cache). **24/54 answer components are bare services** → service candidates needed. Sortedness uses 1,024 probes (not 64), because 64 hid the shard structure.
+- [x] **Case parser (by 10:30).** `origin/case.py` `parse_instruction()`:
   - Window: reuse the starter regex from `agents/heuristic.py::parse_window`
     (month name, day, year, `HH:MM` to `HH:MM`, with an optional second date),
     but build the datetimes with `tzinfo=UTC8`. If the second time is ≤ the
@@ -487,6 +491,7 @@ local stand-in in `tests/_p1_score_stub.py` with the same signature and keys
     09:30", "one failure") → `lo_ts` = epoch of 2022-03-20 09:00 UTC+8, n = 1;
     a window crossing midnight; all 70 parse without exception.
 
+      > done; all 70 parse, `asks` matches the task table, `n_failures` matches the answer count on all 70. Changed: count words include `a failure` / `a single failure`; `asks` is read from the **last sentence only** (verbs vary: identify / determine / pinpoint).
 ### 🛑 CHECKPOINT 1 — contract lock + traps + models (10:30)
 
 Print this to your human and stop:
@@ -524,7 +529,7 @@ Print this to your human and stop:
 
 ## Phase 2 — Window loader, normalization, topology, trace edges (10:30–11:30, gate at 11:00, hard stop 11:30)
 
-- [ ] **`origin/timeslice.py` (by 10:50).**
+- [x] **`origin/timeslice.py` (by 10:50).**
 
   ```python
   def read_slice(path: Path, lo: float, hi: float, ts_col: str, ts_scale: float = 1.0,
@@ -549,7 +554,8 @@ Print this to your human and stop:
     the eval and repeated calls don't re-read.
   - Test on a tiny temp CSV (sorted and unsorted) that both methods return the
     same rows. Time a 90-minute slice of `trace_span.csv` and print it.
-- [ ] **`origin/load.py` — metrics (by 11:00).** `load_window(case, dataset_dir)`:
+      > done, **changed**: files are split into time-sorted runs first (1,024 timestamp probes), then each run is binary-searched, because `trace_span.csv` is ~10 sorted shards, not one. Files with > 32 runs use chunked. Added a `method=` override. 90-min trace slice: **0.4 s**, same rows as a full scan (`tests/test_timeslice.py`).
+- [x] **`origin/load.py` — metrics (by 11:00).** `load_window(case, dataset_dir)`:
   - `base_lo = lo_ts − BASELINE_S`, `base_hi = lo_ts`. Read range = `[base_lo, hi_ts]`
     across every folder in `case.days` (concat). If a baseline would need a
     missing folder, use `[hi_ts, hi_ts + BASELINE_S]` as the baseline instead and
@@ -568,7 +574,8 @@ Print this to your human and stop:
     a candidate source if CP1 said services appear in answers; otherwise keep
     it for evidence only (`level="service"`, never ranked).
   - `source` = file stem without `.csv`.
-- [ ] **Trace edges (by 11:20).** In `load.py`:
+      > done, **changed**: metric files are grouped by series, so each day is read once and cached in-process (metric_container 1.4 s / 67 MB) instead of seeked. `metric_service` is loaded as `level="service"` (services are 24/54 answers, so they will be candidates). `pod_service`: `<name>2-0` maps to `<name>` only when `<name>` is a service from other pods or metric_service (no names in code). `load_window` takes an optional `deadline_ts` (extension of §3, backward compatible).
+- [x] **Trace edges (by 11:20).** In `load.py`:
   - `trace_span.csv` via `read_slice(..., ts_col="timestamp", ts_scale=1000,
     usecols=["timestamp","cmdb_id","span_id","trace_id","duration","status_code","parent_span"])`,
     `dtype` strings for ids, `category` for cmdb_id / status_code.
@@ -585,13 +592,16 @@ Print this to your human and stop:
   - Pods seen only in traces still go into `pods` / `pod_service` (no node known).
   - If the trace read would take longer than `deadline − 20 s`, skip it,
     return empty frames, and add a note (the router sees the note).
-- [ ] **Logs (STRETCH-lite, only if ahead at 11:20).** `log_service.csv`
+      > done. Duration is µs, so `/1000`. `error` = status_code not in `{0, Ok, OK, ok, 200, ""}`. Test checks one edge's parent_ms / child_ms against the raw rows. Negative gaps (to −4 ms, clock skew) are kept as-is.
+- [x] **Logs (STRETCH-lite, only if ahead at 11:20).** `log_service.csv`
       window only: `is_error` = `value` contains `error|exception|fail|fatal`
       (case-insensitive), `pod = cmdb_id`. Skip `log_proxy.csv` entirely.
-- [ ] **Load test.** `tests/test_load.py` on the first dev case: `metrics` has
+      > done. Only error-like lines are kept, in one chunked pass per day (~11 s) that is then cached, so `is_error` is always True. Controlled by `config.LOAD_LOGS`. The first case of each day costs +11 s, and the pass is skipped if the deadline is < 35 s away. **Cut it first if Docker time is tight.**
+- [x] **Load test.** `tests/test_load.py` on the first dev case: `metrics` has
       both levels, every pod has a node, `edges` non-empty, all `ts` within
       `[base_lo − 120, hi + 120]`, and **no `ts` > 1e11** (catches ms leaking in).
 
+      > done: `tests/test_load.py` (both levels + service, every pod has a node, ts range, no ms, edge numbers vs raw rows, baseline fallback, midnight, deadline skip). All 70 dev windows load: **mean 2.7 s, max 5.3 s, peak RSS 1.8 GB** (before logs). Also fixed `case.days` wrongly listing the next day for windows that end at 00:00.
 ### ⏱ GATE — load speed (11:00, solo)
 
 Print this to your human and stop:
@@ -613,6 +623,18 @@ Print this to your human and stop:
 >   buckets) and cache those.
 >
 > Waiting for your go.
+
+> **Gate result (P1):** cold **3.1 s** / warm **1.0 s** on the first dev case with metrics + traces (under target, so continued).
+> With logs on, the first case of a day is **14.2 s** cold (one-off log pass), then 1.6–3 s.
+
+> **P1 pre-CP2 finding (the human let P1 continue without the CP1 merge; Person 2's `origin/anomaly.py` isn't here yet).** CP2 smoke
+> run with `tests/_p1_score_stub.py` (PLACEHOLDER) on dev rows 0, 3, 7: the top list is **not** "a few components". 92–181
+> anomalous series on 31–43 of 59 cmdb_ids, many capped at 50. Causes seen: (a) periodic single spikes also present in the
+> baseline (baseline max 0.61 > window max 0.32 on a `container_network_receive_MB.eth0` series) with a tiny IQR, and
+> two spikes in a row count as sustained; (b) 26/92 anomalies are zero-baseline series. **Suggestions for `score_series`
+> (P2):** don't breach inside the baseline's own [min, max] (or p1–p99) range; require the zero-baseline rule to beat the
+> baseline's nonzero fraction. The loader looks right: true causes do show up (row 7 `node-1` disk reads at 12:08;
+> row 3 `node-1` `system.mem.free` z 26.8 at 10:30).
 
 ### 🛑 CHECKPOINT 2 — real window + anomalies (11:30)
 
