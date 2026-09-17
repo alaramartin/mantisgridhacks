@@ -141,7 +141,7 @@ evidence → node promotion in the causal filter → `single-flash` row → trac
 5. **Never read a whole `trace_span.csv` or `log_proxy.csv`** into memory. 2 CPU,
    8 GB; the judged run has 60 s per case on average.
 6. **Only `FEATHERLESS_BASE_URL`**, key from `FEATHERLESS_API_KEY`. No other
-   network (so no MCP inside the judged agent; our MCP server is a separate STRETCH entry point). No runtime installs. Read only `--dataset`, write only `--out`.
+   network (and no MCP anywhere: Track 1 has no interface dimension, see the CP1 log). No runtime installs. Read only `--dataset`, write only `--out`.
 7. **Holdout discipline.** Nothing is tuned on the 21 holdout cases. Parameters
    and the reason table change only from dev-tune results, and every change is
    logged in `REPORT.md` → "Tuning log".
@@ -190,7 +190,6 @@ A local git repo exists with one commit on `main` and remote `origin` set to
 mantisgridhacks/                     (repo root = the submission)
 ├── Dockerfile  run.py  llm.py  cost.py  score.py  requirements.txt  Makefile      starter (see above)
 ├── README.md                        P2  what / how to run / AI disclosure / attribution
-├── mcp_server.py                    P1  STRETCH #1 only: FastMCP server over the engine (never imported by the agent)
 ├── REPORT.md                        P2  eval write-up (P1 contributes engine + tuning sections)
 ├── agents/
 │   ├── heuristic.py  routed.py      starter baselines, untouched
@@ -207,7 +206,7 @@ mantisgridhacks/                     (repo root = the submission)
 │   ├── candidates.py                P1  ranking, causal filter, reasons, engine answers
 │   ├── facts.py                     P1  render_fact(), render_ruled_out()
 │   ├── engine.py                    P1  analyze() -> Analysis
-│   ├── query.py                     P1  STRETCH: get_series / get_edge (MCP server + strong-model query tools)
+│   ├── query.py                     P1  STRETCH only: get_series / get_edge for a strong-model query loop
 │   ├── fixture.py                   P2  a hand-built Analysis for router development
 │   ├── router.py                    P2  fact sheet, prompts, model calls, parsing
 │   ├── validate.py                  P2  legality, count, time, confidence
@@ -528,9 +527,8 @@ Print this to your human and stop:
 > 3. Answer component forms: `[node a, pod b, service c]` → do we need service-level candidates? `[yes/no]`
 > 4. From Person 2: which models are up, Flash / GLM-5.2 latency, how to turn thinking off, JSON reliability.
 > 5. Holdout: 21 row_ids fixed in `eval/splits/split.json` — nobody looks at per-case results on those until CP4.
-> 6. **Ask an organizer:** does Track 1 expect MantisGrid MCP / an MCP? If **required**, STRETCH #1 (our MCP
->    server, Person 1's STRETCH section) moves to right after CP3, and the cut order drops `log_service` and
->    `metric_service` signals to make room. If optional, it stays a stretch after CP4.
+> 6. **Ask an organizer:** does Track 1 expect MantisGrid MCP / an MCP? **ANSWERED: no** (see the CP1 log) —
+>    no MCP is built, and the cut order keeps the `log_service` / `metric_service` signals.
 >
 > Waiting for your confirmation that this passed.
 
@@ -961,60 +959,22 @@ Print this to your human and stop:
 
 ## STRETCH (Person 1) — only after CP4 and only if the human says so
 
+> **The MCP server is dropped** — see the CP1 entry in the CHECKPOINT LOG. `docs/scoring.md`
+> says Track 1 has no interface dimension and `PARTICIPANT_AGREEMENT.md` §8 assigns MCP to Track 2's
+> judging focus. Higher-value uses of any spare time, from `docs/scoring.md`'s own "worth doing, none
+> required" list: the failure taxonomy (**done**, `docs/engine-tuning.md`) and *"knowing when it doesn't
+> know"* stated as a result — the doc's example framing is *"above confidence T we'd abstain on 40% of
+> cases, and accuracy on the rest is 3×"*, which is P2's calibration table rewritten as an abstention
+> result. See also the extra eval row proposed in the CP4 entry (gate + Flash, no escalation).
+
 - [ ] `metric_mesh.csv` edge signals (quoted `kpi_name` with commas → always `csv`/pandas, never split).
 - [ ] `log_service.csv` error bursts per pod as `log_errors` signals.
 - [ ] Fix test: ridge counterfactual on pod CPU/memory → "Verifier check (simulated)" line in Ruled out.
-- [ ] **STRETCH #1 — ORIGIN MCP server (~45–60 min; build this first).** Our own MCP server over the
-      engine, so an on-call engineer can ask Claude Desktop / Claude Code "what broke between 09:00 and
-      09:30?". **It stays outside the judged path:** don't touch `Dockerfile`, `requirements.txt`,
-      `run.py` or `agents/`, and never import `fastmcp` from `origin/`.
-  1. **Query backend first** (also used by Person 2's STRETCH #2), in `origin/query.py`:
-
-     ```python
-     def get_series(a: Analysis, w: Window, component: str, kpi: str) -> Signal | None
-         # score_series on that (component, kpi) over the case's baseline + window; returns a Signal with the
-         # next free fact ID (added to a.signals) even if it is NOT anomalous (score < TAU), so "it was normal"
-         # is also a grounded fact. None if the series doesn't exist.
-     def get_edge(a: Analysis, w: Window, caller: str, callee: str) -> Signal | None   # same, for the call-gap series
-     ```
-
-     `engine.analyze` must also keep the `Window` it loaded (add `window: Window | None` to `Analysis`,
-     **excluded from the pickle cache**) so these don't re-read files. Tell Person 2 about the contract change.
-  2. **`mcp_server.py` at the repo root** (not a package named `mcp/`, which would shadow the `mcp` SDK), using FastMCP:
-
-     ```python
-     from fastmcp import FastMCP
-     mcp = FastMCP(name="ORIGIN RCA", instructions="Root-cause analysis over OpenRCA Market telemetry. "
-         "Every fact carries its source file, cmdb_id, KPI and epoch timestamp; quote facts, don't invent numbers. "
-         "Times are UTC+8. Call analyze_case before the other case tools.")
-     DATASET = Path(os.environ.get("ORIGIN_DATASET", "data/Market-cloudbed-1"))
-     _CASES: dict[str, Analysis] = {}        # case_id -> Analysis, in memory
-     ```
-
-     Tools (each docstring written for the model, short, saying what's fact vs model-chosen):
-     - `list_cases(limit: int = 20) -> list[dict]` — `row_id`, `task_index`, the window and failure count parsed from
-       `query.csv` (never `scoring_points`).
-     - `analyze_case(row_id: int | None = None, instruction: str | None = None) -> dict` — runs `engine.analyze`
-       (engine only, **no GLM calls**), stores it under `case_id = str(row_id)` or `sha1(instruction)[:8]`, returns
-       `case_id`, n_failures, asked fields, the engine answers, margin, and the top 5 candidates (cid, component, level,
-       score, onset in UTC+8, top reason, demoted_by).
-     - `get_candidates(case_id: str, k: int = 8) -> list[dict]` — the ranked candidates with their fact IDs.
-     - `get_evidence(case_id: str) -> str` — the four evidence sections for the engine answers, reusing
-       `origin/facts.py` (+ Person 2's `origin/evidence.py` builder with an engine-only decision).
-     - `get_fact(case_id: str, fact_id: str) -> str` — `render_fact` of one fact.
-     - `get_series(case_id: str, component: str, kpi: str) -> str` and `get_edge(case_id: str, caller: str, callee: str) -> str`
-       — the query backend above; return the rendered new fact, or "no such series" with the KPIs that do exist for that component (≤ 20).
-
-     End the file with `if __name__ == "__main__": mcp.run()` (stdio).
-  3. **Run and connect.** `uv run --with fastmcp --with-requirements requirements.txt python mcp_server.py`
-     (or `pip install fastmcp` into the local `.venv` only). Claude Code: `claude mcp add origin -- uv run --with fastmcp
-     --with-requirements requirements.txt python /abs/path/mantisgridhacks/mcp_server.py`, then ask "use origin to list
-     cases and analyze row 0". Claude Desktop: the same command in `claude_desktop_config.json` under `mcpServers.origin`
-     with `"cwd"` set to the repo. Write both snippets into README.md → "MCP server (optional)".
-  4. **Test:** `tests/test_mcp_tools.py` calls the tool functions directly (FastMCP-decorated functions are still
-     callable via `mcp_server.analyze_case.fn(...)`, or keep plain helper functions that the tools wrap and test those).
-     Then one real conversation from a client; save the transcript screenshot for the presentation.
-  5. Tell Person 2 it's ready for the optional presentation beat (their Phase 5 table).
+- [ ] **Bounded query backend** (`origin/query.py`): `get_series(a, w, component, kpi)` / `get_edge(a, w, caller, callee)` score a named series over the case's baseline + window and return a
+      Signal with the next free fact ID **even when it is not anomalous**, so "it was normal" is a grounded
+      fact too. Only useful if Person 2 builds the strong model's query loop on top; ask before starting.
+      `engine.analyze` would need to keep its `Window` (a `window: Window | None` field on `Analysis`,
+      excluded from the pickle cache) — a contract change, so tell Person 2 first.
 
 ---
 
@@ -1576,16 +1536,13 @@ Print this to your human and stop:
   | 1:20–2:20 | **Evidence + grep** | `cat out/demo/evidence/<row>.md`, then the `awk … | grep …` for one fact | "Every number here is copied from the raw data — here it is in the CSV. And here's what it ruled out, and why." |
   | 2:20–3:30 | **Eval** | `eval/results/summary.md` | routed vs single-model: score, dollars, seconds, variance; the routing breakdown; the negative result |
   | 3:30–4:00 | Where it fails + calibration + next | REPORT.md sections | one sentence each |
-  | (inside 3:30–4:00, only if STRETCH #1 shipped; cut first) | Same engine as an MCP tool | Claude Code / Desktop asking "what broke between 09:00 and 09:30?" → `analyze_case`, `get_evidence` | "An on-call engineer can ask the same engine in chat, and get the same checkable facts." |
 
   Never show a `fallback` / `engine_only` case as the model deciding. If the live call is slow, keep talking; the `How this was produced` section explains the route.
 - [ ] **Submit (FINAL SUBMISSION section) by 2:50.**
 
 ## STRETCH (Person 2) — only after CP4 and only if the human says so
 
-- [ ] **STRETCH #1 (Person 1 builds it): ORIGIN MCP server** — your part is only the optional ~20 s presentation beat
-      and the README "MCP server (optional)" section Person 1 hands you. Don't add `fastmcp` to `requirements.txt`.
-- [ ] **STRETCH #2 — Bounded query tools** for the strong model: after its first reply, allow ≤ 2 requests
+- [ ] **Bounded query tools** for the strong model: after its first reply, allow ≤ 2 requests
       `{"get_series": {"component","kpi"}}` / `{"get_edge": {"caller","callee"}}`, served by
       Person 1's `origin/query.py` (built for STRETCH #1), each result added to the sheet as a new fact ID; re-ask once. Only on escalated cases, only with ≥ 20 s left.
 - [ ] **STRETCH #3 — PROVE THE CAUSAL FILTER IS WORTH ANYTHING (`engine-nocausal` ablation).**
@@ -1647,6 +1604,7 @@ Print this to your human and stop:
       the visualization track.)" A renderer earns zero. Text in the evidence file earns evidence
       marks, which are worth more than accuracy.
 
+      Person 1's `origin/query.py` (stretch, ask first), each result added to the sheet as a new fact ID; re-ask once. Only on escalated cases, only with ≥ 20 s left.
 - [ ] Thinking on vs off ablation for GLM-5.2 on the holdout (one extra config).
 - [ ] Cheaper strong tier (GLM-4.7 vs GLM-5.2) as an extra row.
 
@@ -1681,13 +1639,24 @@ Update this on `main` after each merge so the humans can `/clear` and resume.
 - [x] Planning (9:45) — official repo read (brief, data, models, scoring, submission, starter, agreement);
       starter copied flat to the repo root; Makefile adapted to the root layout; `.dockerignore` / `.gitignore`
       exclude data and secrets; SPEC v6.0 + PLAN v2 written; pushed to `main`.
-  - Decision (humans): MCP = **STRETCH #1**, our own MCP server over the engine (`mcp_server.py`), outside the
-    Docker path; MantisGrid's MCP is Track 2's API and unreachable from the judged container. Ask organizers at CP1.
-  - MCP decision: recorded under Checkpoint 1 below.
+  - Decision (humans, later reversed): MCP was pencilled in as a stretch at planning time. **Dropped** — see the
+    CP1 entry below: Track 1 has no interface dimension and MCP is Track 2's judging focus, confirmed with the judges.
 - [x] Checkpoint 1 — contract lock + traps + models (10:30) — merged on `main` by Person 1's machine (both branches,
       no conflicts; 36 tests pass; `eval/split.py` re-run on P1's machine reproduces the committed split byte for byte).
       P1 had already finished Phase 2 when the merge ran, so its loader is in this merge too.
-  - MCP decision at CP1 (required / optional): **PENDING — ask an organizer.**
+  - MCP decision at CP1 (required / optional): **RESOLVED from the governing docs, no organizer needed —
+    Track 1 does not want an interface and does not want MCP.** `docs/scoring.md`: *"**There's no interface
+    dimension.** Your agent runs headless and writes files; nobody watches it work. (Track 2 is the
+    visualization track.)"* `docs/PARTICIPANT_AGREEMENT.md` §8, which the docs say governs, splits the
+    track focus explicitly: *"Track 1: model accuracy, explanability, strength of evaluations, token
+    usage. Track 2: use of MantisGrid AI/MCP…"*. So the "use MantisGrid AI/MCP" slide item is Track 2's
+    criterion, not ours — the SPEC's framing of STRETCH #1 as "answers slide item 02" was wrong.
+    **Consequence: the MCP server is dropped, not deferred** (removed from SPEC.md and this file). It would be unscored on all
+    four Track 1 criteria, it cannot appear in the judged Docker path anyway, and the presentation is
+    10% with a 4-minute budget that `docs/submission.md` already fills with the demo they ask for
+    ("Run a case live…, open the `evidence/` file it just wrote, and walk through what it ruled out.
+    Then show your eval"). The cut order does **not** need to give up the `log_service` or
+    `metric_service` signals to make room for it.
   - Files sorted by time / loader method: `metric_node` sorted; `trace_span` = ~10 time-sorted shards → **seek per shard**;
     `metric_container` / `metric_service` grouped by series → **read once per day, cached**; `log_service` unsorted →
     chunked, error lines only, cached per day (`config.LOAD_LOGS`, cut first). `log_proxy` never read.

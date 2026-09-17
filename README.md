@@ -1,62 +1,95 @@
 # ORIGIN — Track 1 — Root Cause Analysis
 
-**When one component in a cloud system fails, everything downstream of it also
-looks broken — usually louder than the thing that broke.** ORIGIN separates the
-cause from its symptoms: a deterministic engine ranks candidates and then demotes
-any component whose *own dependencies* went wrong first. A language model is
-called only where that ranking is genuinely ambiguous, and it is never allowed to
-write the answer — it picks a candidate ID and a reason from a fixed list, and
-code fills in every name, number and timestamp from the data.
+> **MantisGrid AI Hackathon, 17 September 2026 · Track 1 — Root Cause Analysis**
+> An RCA agent whose evidence cannot lie, and which only pays for reasoning when the data is ambiguous.
 
-The published state of the art on this benchmark solves about one case in nine.
+Most agents dump telemetry into a model and ask what broke. ORIGIN reads only the failure window,
+rebuilds who-runs-on-what and who-calls-whom from the telemetry itself, and lets a deterministic
+engine rank the legal suspects. It spends model tokens only when the evidence is ambiguous: a cheap
+GLM first, a strong one only when they disagree. Every number in its explanation is copied from the
+raw data with the file and timestamp, so an on-call engineer can check it in seconds. It always
+guesses, and says plainly how sure it is.
 
-## Pipeline
+<!-- P2: drop the headline numbers in once the holdout run lands. Keep them holdout, not dev-tune. -->
+**Headline results (holdout, 21 unseen cases):** _TODO P2_ — routed `<score> (± <sd>)` ·
+single-model `<score>` · engine-only `<score>` · starter heuristic `<score>`, at `$<x>/case` and
+`<y>s/case`. Full write-up and the negative results in [REPORT.md](REPORT.md).
+
+## How it works
 
 ```
-0 parse case      instruction -> window (UTC+8), failure count, fields asked
-1 load window     only the window + a 60-min baseline; metrics, trace edges, error logs
-2 anomalies       robust z vs baseline median/IQR, sustained over k samples -> onsets
-3 candidates      group signals by component, rank, CAUSAL FILTER, legal reasons
-4 route           gate (no model) -> GLM-4.7-Flash -> GLM-5.2 on escalation
-5 validate        candidate id + legal reason -> answer; code writes every number
-6 render          prediction (exact key order) + grounded evidence markdown
+0 parse the case   window (UTC+8), how many failures, which fields are asked
+1 load the window  only [window start - 60 min, window end], out of 12 GB of CSV
+2 signals          which series and trace edges left their normal range, and when
+3 candidates       rank the legal suspects, causal filter, legal reasons, render facts
+4 route            gate (no model) -> GLM-4.7-Flash -> GLM-5.2 only on escalation
+5 validate         legal component, legal reason, exact count, time from the data
+6 render           predictions.csv + evidence/<row_id>.md
 ```
 
-Only stage 4 involves a model.
+Three ideas, each measurable:
 
-## Results
+1. **The LLM chooses; the engine adjudicates.** Models pick among structurally legal candidates by
+   fact ID. They never write a timestamp, a number, a component name outside the data, or a reason
+   outside the 15 legal ones. The validator enforces that and falls back to the engine's answer.
+2. **Evidence is rendered from data, not written by a model.** Every fact carries its file,
+   `cmdb_id`, KPI and epoch timestamp; raw values are cut rather than rounded so a `grep` still
+   matches. Any number in model prose that is not in the fact sheet removes that prose.
+3. **A confidence gate.** When the engine's margin is large, no model is called at all — 4 of 20
+   cases in our Docker run. Otherwise Flash decides, and GLM-5.2 only on disagreement, low margin,
+   several failures or a hard task.
 
-Holdout (21 cases, split by `row_id` before any tuning, never tuned on):
+The model never sees raw telemetry — only a fact sheet of ≤ 40 facts (~4–6 K tokens), against the
+474 K input tokens a "typical case" would cost by reading the window
+([docs/models.md](docs/models.md)).
 
-| config | mean score | fully solved |
-|---|---|---|
-| `heuristic` (starter baseline, no model) | 0.111 | 1/21 |
-| `engine` (ours, no model) | **0.512** | **7/21** |
+![what "outside its normal range" means](docs/figures/signal.png)
 
-Judged configuration, in Docker at 2 CPU / 8 GB: **20 cases in 5 min 54 s**
-(17.6 s/case), peak **1.74 GiB**, **$0.126** for the run.
-
-Full tables, the routed-vs-single-model comparison, the failure taxonomy and the
-calibration result are in **[REPORT.md](REPORT.md)**, generated from the
-committed CSVs in `eval/results/` by `python -m eval.summarize`.
+![topology rebuilt from the telemetry alone](docs/figures/topology.png)
 
 ## How to run
 
-```bash
-pip install -r requirements.txt
-make data                                    # 1.3 GB zip -> ~12 GB in data/
-export FEATHERLESS_API_KEY=...               # without it, ORIGIN runs engine-only
-
-make validate                                # 2 cases, checks the output shape
-make dev && make score                       # all 70 dev cases, then score them
-make docker                                  # build and run exactly as judges do
-
-python -m eval.run_eval --config routed --split holdout
-python -m eval.summarize                     # regenerate every table in REPORT.md
+```sh
+pip install -r requirements.txt          # pandas, numpy, openai
+make data                                # downloads Market-cloudbed-1 into data/ (1.3 GB -> ~12 GB)
+export FEATHERLESS_API_KEY=...           # nothing in this repo reads .env for you:
+                                         #   set -a; . ./.env; set +a   also works
+make validate                            # our agent on 2 cases + output-shape check
+make dev && make score                   # all 70 dev cases, then score them (make dev N=20 for 20)
+make cost OUT=out/dev                    # dollars per case and per model
+make docker                              # exactly as the judges run it: 2 CPU / 8 GB, 2 cases
 ```
 
-`python run.py --dataset <dir> --queries <query.csv> --out <dir>` is the judged
-entry point; its command line is unchanged from the starter.
+Evals and one case at a time:
+
+```sh
+python -m eval.run_eval --config routed --split holdout --repeat 3
+python -m eval.run_eval --config engine --split dev_tune          # free, no model calls
+python -m origin.engine --row 38                                  # candidates, facts, ruled out
+python scripts/make_figures.py --row 38                            # regenerate docs/figures/*.png
+```
+
+## What's in here
+
+| Path | What |
+|---|---|
+| `agents/origin.py` | the submitted agent: budget, gate, router, validator, confidence, evidence |
+| `origin/` | `case` `timeslice` `load` `anomaly` `signals` `candidates` `facts` `engine` · `router` `validate` `evidence` |
+| `eval/` | `split.py`, the committed split, `run_eval.py`, `summarize.py`, results |
+| `REPORT.md` | the eval write-up: routed vs single model, taxonomy, calibration, tuning log |
+| `docs/engine-tuning.md` | every parameter change, with the dev-tune number before and after |
+| `docs/data-notes.md` | the dataset's traps, measured on the real files |
+| `docs/walkthrough.md` | how each half works, in plain language |
+| `run.py` `llm.py` `cost.py` `score.py` `Dockerfile` `Makefile` | MantisGrid's starter (see Attribution) |
+
+## Evaluation, briefly
+
+70 dev cases split **49 dev-tune / 21 holdout**, stratified 3 per task type, fixed by `row_id` in
+`eval/splits/split.json` before any run (rule: `md5(row_id)` order — deterministic, reproducible).
+**Nothing was tuned on the holdout**: every parameter change came from dev-tune results and is logged
+in `docs/engine-tuning.md`. Configurations compared: `routed` (submitted), `single-flash`,
+`single-strong`, `engine` (no model calls), and the starter `heuristic` floor.
+<!-- P2: mention repeats + variance here, and the abstention/calibration framing scoring.md asks for -->
 
 ## AI disclosure
 
