@@ -1054,13 +1054,50 @@ Print this to your human and stop:
       `edge_gap` signal, another node), ~12 Signals with plausible numbers,
       `margin` 0.22, `engine_answers` for C1. Also `make_clear_analysis()` with
       margin 0.6 / support 3 (gate case) and a 2-failure variant. `# PLACEHOLDER: fixture until CP3`.
+- [ ] **Patch `llm.py` for Featherless's `reasoning` field (by 10:40) — BLOCKER, do this first.**
+      Measured at CP1 (`docs/model-findings.md` §3): Featherless returns the answer in
+      `message.reasoning` with `message.content == ""` on **both Flash models, 4/4 calls**.
+      It is not `reasoning_content` and there are no `<think>` tags. `llm.py`'s `_once()`
+      reads only `.content`, so **it returns `""` on every GLM-4.7-Flash call** — our cheap
+      tier, the model most cases will use. The agent would see an empty answer, fall back to
+      the engine, and still be billed. In `_once()`, after the usage accounting:
+
+      ```python
+      msg = r.choices[0].message
+      text = msg.content or ""
+      if not text.strip():        # Featherless puts it here on the Flash models
+          text = getattr(msg, "reasoning", None) or getattr(msg, "reasoning_content", None) or ""
+      return re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
+      ```
+
+      This is the **only** starter file we change beyond `run.py`'s default `--agent`.
+      Record it in `README.md` and `ATTRIBUTION.md`, and tell Person 1 at the merge —
+      anyone using the starter `llm.py` with a Flash model is silently getting empty strings.
+      `tests/test_llm.py`: a stub response with `content=""` and `reasoning='{"a":1}'` must
+      come back as `'{"a":1}'`; one with both populated must prefer `content`; `<think>`
+      stripping must still work on both fields.
+
+- [ ] **Docker installed and `make docker` green (by 11:20) — BLOCKER for CP4, start early.**
+      Checked at CP1: **Docker is not installed on Person 2's machine at all** (not on PATH,
+      nothing in `Program Files`). Priority #1 needs `make docker` passing at 2 CPU / 8 GB by
+      CP4, and Docker Desktop is a large download plus a reboot, so it cannot wait until 1:45.
+      Human action: install Docker Desktop, enable the WSL2 backend, confirm
+      `docker version` works, then `make docker` (builds the image and runs 2 dev cases).
+      If Docker cannot be installed in time, the fallback is for Person 1 to run
+      `make docker` on their machine and paste the output — but the image must be proven
+      somewhere before the submission, because judges run it.
+
 - [ ] **Model tiers + agent skeleton (by 11:20).** Append to `origin/config.py` below `# --- PERSON 2 ---`:
 
   ```python
+  # tiers confirmed by the CP1 spike (docs/model-findings.md): 4.7-Flash parsed 4/4 at
+  # ~90 output tokens and 2.4-3.7 s; 5.3-Flash only 2/4 (it rambles past the JSON), so it
+  # is the availability fallback, never the first choice. GLM-5.3 exists on Featherless
+  # but is NOT in cost.py's PRICES and would raise KeyError -- never call it.
   CHEAP = ["zai-org/GLM-4.7-Flash", "zai-org/GLM-5.3-Flash"]
-  STRONG = ["zai-org/GLM-5.2", "zai-org/GLM-5.1"]     # adjust from CP1 findings
-  CHEAP_MAX_TOKENS = 700
-  STRONG_MAX_TOKENS = 4000                            # thinking on; lower if CP1 turned it off
+  STRONG = ["zai-org/GLM-5.2", "zai-org/GLM-5.1"]     # 5.2: 1.5-17 s, ~45 out tok, 4/4
+  CHEAP_MAX_TOKENS = 700          # measured worst case 95 with thinking off; 700 is slack
+  STRONG_MAX_TOKENS = 700         # was 4000 for thinking-on; CP1 turned thinking OFF
   CALL_TIMEOUT_S = 25
   CASE_SOFT_DEADLINE_S = 45
   STRONG_MIN_REMAINING_S = 20
@@ -1070,7 +1107,11 @@ Print this to your human and stop:
   ESCALATE_MARGIN = 0.15
   FACTS_MAX = 40
   CANDIDATES_SHOWN = 8
-  THINKING_OFF = {"chat_template_kwargs": {"enable_thinking": False}}   # PLACEHOLDER: from CP1 findings
+  # CONFIRMED at CP1, not a placeholder. Pass this as extra_body on EVERY model call.
+  # With thinking on, all four models spend the whole output budget narrating and get cut
+  # off mid-JSON: 0/4 parsed at a 1200-token cap. With it off: 12/16 parsed, 1.5-4 s.
+  # The other documented switch, {"thinking": {"type": "disabled"}}, is silently ignored.
+  THINKING_OFF = {"chat_template_kwargs": {"enable_thinking": False}}
   ```
 
   `agents/origin.py`:

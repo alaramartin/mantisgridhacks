@@ -182,3 +182,35 @@ task_5 10 -> 3/7, task_6 12 -> 3/9, task_7 11 -> 3/8.
 Rule (also in `split.json`, so it is re-derivable): per `task_index`, sort that
 task's `row_id`s by `md5(str(row_id)).hexdigest()` and take the first 3.
 **Nothing is run on the holdout until CP4.**
+
+Covered by `tests/test_split.py` (5 tests): 3-per-task, disjoint, complete,
+order-independent, small-task safe, and the committed files still agree with
+`query_dev.csv`. Re-running `eval/split.py` is byte-identical.
+
+## 7. Why the heuristic scores 0.000 on task_3 and task_5
+
+Measured on dev_tune only (the holdout stays closed): **the heuristic gets the
+component right in 1 of 29 cases** that ask for one — task_3 0/5, task_5 0/7,
+task_6 0/9, task_7 1/8.
+
+That single weakness explains the whole per-task table. task_3's only scoring
+point is the component, and task_5's two points are the component and a datetime
+within 1 minute, so both collect nothing. The tasks that score above zero are the
+ones with a datetime point the heuristic can occasionally land (task_1, 0.125).
+
+So it is not two odd task types — it is one weakness showing through wherever it
+is not masked: **the baseline can roughly tell when something went wrong, but not
+what broke.** Picking the right component out of the cascade is exactly what the
+candidate engine and the routing are for, which is a good sign for the design.
+
+## 8. What has and has not been verified
+
+| Check | Result |
+|---|---|
+| `python -m pytest -q` | 5 passed (`tests/test_split.py`) |
+| `scripts/validate_submission.py` (official shape checker) | **valid, 0 warnings** — run.py ran 2 cases, predictions.csv has row_id + prediction, one evidence .md per case |
+| `python cost.py out/heuristic/usage.jsonl` | 70 cases, $0.0000 (heuristic uses no models) |
+| `eval/split.py` re-run | byte-identical output |
+| `.env` gitignored + dockerignored, key absent from every commit | confirmed |
+| `make docker` | **NOT RUN — Docker is not installed on this machine.** See the PLAN blocker task. |
+| `origin/anomaly.py`, router, agent, evidence | do not exist yet (Phase 2) |
