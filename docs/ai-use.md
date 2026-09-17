@@ -48,7 +48,7 @@ draft; "team-written" means a human typed it.
 | `origin/case.py`, `origin/timeslice.py`, `origin/load.py`, `origin/signals.py`, `origin/candidates.py`, `origin/facts.py`, `origin/engine.py` | P1 | _(fill in)_ |
 | `origin/anomaly.py` | P2 | AI-generated from the PLAN pseudocode, human-reviewed |
 | `origin/fixture.py` | P2 | AI-generated placeholder, numbers chosen by the team from `docs/data-notes.md` |
-| `origin/router.py`, `origin/validate.py`, `origin/evidence.py` | P2 | _(fill in)_ |
+| `origin/router.py`, `origin/validate.py`, `origin/evidence.py` | P2 | AI-generated from the PLAN spec, human-reviewed |
 | `agents/origin.py` | P2 | AI-generated from the PLAN skeleton, human-reviewed |
 | `eval/split.py` | P2 | AI-generated, human-reviewed |
 | `eval/run_eval.py` | P2 | AI-generated, human-reviewed |

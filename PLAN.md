@@ -1287,7 +1287,7 @@ Print this to your human and stop:
 
 ## Phase 3 — Router, validator, confidence, evidence (11:30–12:45, hard stop 12:45; lunch at the keyboard 12:00–12:30)
 
-- [ ] **`origin/router.py` — fact sheet + calls (by 12:05).**
+- [x] **`origin/router.py` — fact sheet + calls (by 12:05).**
 
   ```python
   def fact_sheet(a: Analysis) -> str
@@ -1339,7 +1339,7 @@ Print this to your human and stop:
   - Parse: `re.search(r"\{.*\}", text, re.S)` → `json.loads`; on failure record the error.
   - `ModelUnavailable` / any exception → record, `route = "fallback"`, picks from the last valid stage or None.
   - Time each stage into `seconds`.
-- [ ] **`origin/validate.py` (by 12:20).**
+- [x] **`origin/validate.py` (by 12:20).**
 
   ```python
   def validate(a: Analysis, d: dict) -> tuple[list[dict], str, list[str]]   # answers, confidence, notes
@@ -1354,7 +1354,7 @@ Print this to your human and stop:
     called, or the final component(s) == engine's); `Low` if `a.margin < ESCALATE_MARGIN`, or the final
     top component ≠ engine C1, or the route is `fallback`/`engine_only` because of an error or deadline, or
     the engine noted a failed stage; else `Medium`. Also a one-sentence `confidence_why` from which rule fired.
-- [ ] **`origin/evidence.py` (by 12:40).**
+- [x] **`origin/evidence.py` (by 12:40).**
 
   ```python
   def build_evidence(a, answers, d, confidence, notes, seconds) -> str
@@ -1379,7 +1379,7 @@ Print this to your human and stop:
     "model prose removed: it cited a number not found in the data" to notes.
   - `tests/test_evidence.py` on the fixture: all four sections present; a `why` containing "73.2"
     (not in facts) is dropped; a `why` citing `F3` and a fact's number is kept.
-- [ ] **Switch the default agent (12:45).** In `run.py` change only
+- [x] **Switch the default agent (12:45).** In `run.py` change only
       `p.add_argument("--agent", default="agents.heuristic", …)` → `default="agents.origin"`.
       In `Makefile` `validate`, change `agents.heuristic` → `agents.origin`. Until CP3, `agents/origin.py`
       uses the fixture when `ORIGIN_FIXTURE=1`, and otherwise imports `origin.engine`
@@ -1597,9 +1597,43 @@ Update this on `main` after each merge so the humans can `/clear` and resume.
     alongside anything else** (it failed once during this phase, passed on re-run). P1's own
     gate measured 14.2 s cold on their machine. Not changed — it is P1's test and P1's
     threshold — but the margin is thin enough that the judged 2-CPU container may cross it.
-- [ ] Checkpoint 3 — first end-to-end ORIGIN (12:45)
-  - Engine-only dev_tune vs heuristic:
-  - Grep test passed:
+- [ ] Checkpoint 3 — first end-to-end ORIGIN (12:45) — **P2 side complete on `person2`, NOT merged
+      to main (human asked to hold).** Router, validator, confidence and evidence all land with tests:
+      **115 tests pass** (excluding `test_load.py`, see below). `run.py` and `Makefile validate` now
+      default to `agents.origin`.
+  - Engine-only dev_tune vs heuristic: **blocked on P1's `origin/engine.py`.** Until it imports,
+    `agents/origin.py` falls back to `agents/heuristic.py` per the PLAN, with a banner at the top of
+    every evidence file so a heuristic answer is never passed off as an ORIGIN one.
+  - Grep test passed: _pending the merge with P1._
+  - **DEVIATION FROM THE PLAN — strong tier runs with thinking OFF.** PLAN Phase 3 said to leave
+    thinking on for the strong call; that contradicts the CP1 decision ("thinking OFF on every call").
+    Measured at CP3 on GLM-5.2, this exact prompt, 3 calls each:
+    | thinking | parsed | wall | out tokens |
+    |---|---|---|---|
+    | ON | **2/3** (one hit the 700 cap and returned no JSON) | 9.5–28.7 s | 506–700 |
+    | OFF | **3/3** | 2.4–10.7 s | 146–163 |
+    ON is worse on all three SPEC axes, and 2/3 of those calls exceeded `CALL_TIMEOUT_S = 25` —
+    which would trip llm.py's breaker and silently demote us to GLM-5.1 for the rest of the run.
+    Pinned in `tests/test_router.py::test_strong_call_also_turns_thinking_off`.
+  - **Live end-to-end probe** (one routed case on the fixture, real API): flash 5.3 s → escalated →
+    strong 23.4 s, both parsed, model prose passed the grounding check, **$0.0059 for the case**.
+    Confirms the llm.py `reasoning` patch against the live API.
+  - **Cost warning for Phase 4:** the "all three fields asked" escalation rule fires on its own, and
+    most tasks ask all three — so as specced, *most* cases go to the strong model. That is the first
+    dial to turn if $/case or s/case is over budget.
+  - **`run.py` writes evidence as cp1252 on Windows.** `Path.write_text()` with no encoding, and that
+    call sits OUTSIDE run.py's per-case try/except — so one unencodable character kills the whole run,
+    not one case. Contract §2 puts `"caller → callee"` in every edge cmdb_id and U+2192 is not in
+    cp1252 (verified: `UnicodeEncodeError`). Judges run Linux/UTF-8 so this is a local-only hazard,
+    but `make dev` on P2's machine would have died as soon as P1's first edge signal appeared.
+    Fixed at our end without touching run.py: `agents/origin.py` folds evidence to ASCII before
+    returning it. **P1: no action needed, but do not be surprised that `→` renders as `->`.**
+  - **P1's `tests/test_load.py::test_first_dev_case` now fails consistently here** (was flaky at CP2):
+    `load_s < 30` against measured **34.9 s cold**. Isolated re-measurement on P2's machine:
+    cold (first case of a day) **34.9 s**, warm same case **3.9 s**, warm second case **5.2 s**.
+    P1's own gate measured 14.2 s cold, so this box is ~2.5x slower on the cold pass. Not changed —
+    P1's test, P1's threshold — but note our `CASE_SOFT_DEADLINE_S` is 45 s and a cold day plus a
+    strong call is already 35 + 24 s.
 - [ ] Checkpoint 4 — docker + final eval (1:45)
   - Holdout table (routed / single-strong / single-flash / engine / heuristic):
   - Docker 20-case time and peak memory:

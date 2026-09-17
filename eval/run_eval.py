@@ -195,6 +195,12 @@ def main() -> None:
 
     if args.split == "holdout":
         print("!! HOLDOUT. Summary only until CP4 -- do not open per-case results.\n")
+    if os.environ.get("ORIGIN_FIXTURE") == "1":
+        # A fixture run answers the same hand-written case every time, and on dev
+        # case 0 it happens to be right. Recording that would put a meaningless
+        # 0.40 next to the real numbers in eval/results/.
+        raise SystemExit("refusing to record a run with ORIGIN_FIXTURE=1 -- the "
+                         "fixture is not the engine and its score means nothing")
 
     summaries = [one_run(args.config, args.split, r, args.limit)
                  for r in range(1, args.repeat + 1)]

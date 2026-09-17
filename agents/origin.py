@@ -95,6 +95,11 @@ def _validate(a, decision: dict):
 
 
 def _evidence(a, answers, decision, confidence, notes, seconds) -> str:
+    # build_evidence is Analysis-shaped by design. If the engine died before there
+    # was an Analysis, using it would bury the real cause under an AttributeError
+    # from the evidence code -- and the evidence file is 35% of the grade.
+    if a is None:
+        return _stub_evidence(a, answers, decision, confidence, notes, seconds)
     try:
         from origin.evidence import build_evidence
     except ImportError:
@@ -129,6 +134,23 @@ def _stub_evidence(a, answers, decision, confidence, notes, seconds) -> str:
 
 # --- the never-empty guarantee ------------------------------------------------
 
+# run.py writes evidence with `Path.write_text(...)` and no encoding, so on Windows
+# it encodes as cp1252 -- and that call sits OUTSIDE its per-case try/except, so one
+# unencodable character kills the whole run rather than one case. Contract §2 puts
+# "caller → callee" in every edge cmdb_id, and U+2192 is not in cp1252. Judges run
+# Linux (UTF-8) where this is moot, but `make dev` on Person 2's machine is not.
+# Folding here fixes it for whatever P1's render_fact emits, without touching run.py.
+_ASCII = str.maketrans({
+    "→": "->", "←": "<-", "—": "--", "–": "-", "…": "...",
+    "‘": "'", "’": "'", "“": '"', "”": '"', " ": " ",
+    "·": "-", "≥": ">=", "≤": "<=", "×": "x", "τ": "tau",
+})
+
+
+def _ascii(text: str) -> str:
+    return text.translate(_ASCII).encode("ascii", "replace").decode("ascii")
+
+
 def _fallback_answers(a, n: int, instruction: str) -> list[dict]:
     """`n` answers when everything upstream failed. Honest, but never empty:
     an empty prediction is a guaranteed zero, a guess is only probably one."""
@@ -143,10 +165,12 @@ def _fallback_answers(a, n: int, instruction: str) -> list[dict]:
         while len(out) < n:             # fewer candidates than failures asked for
             out.append(dict(out[-1]) if out else {})
         return out
+    # Nothing to rank. The window start is the one thing we actually know, so give
+    # that and leave the rest blank -- an invented component name scores exactly
+    # what a blank one does, and blank does not put a fabrication in the evidence.
     when = fmt_ts(a.case.lo_ts) if a is not None else ""
-    guess = {"datetime": when, "component": "frontend-0",
-             "reason": "container CPU load"}
-    return [dict(guess) for _ in range(max(1, n))]
+    return [{"datetime": when, "component": "", "reason": ""}
+            for _ in range(max(1, n))]
 
 
 def _n_failures(a, instruction: str) -> int:
@@ -193,6 +217,25 @@ def write_trace(out_dir, instruction: str, a, decision: dict, answers: list[dict
         pass        # the trace is diagnostics; it must never cost a case
 
 
+def _via_heuristic(instruction: str, dataset_dir: Path, ctx: dict, t0: float) -> Solution:
+    """PLACEHOLDER route, until `origin/engine.py` exists (PLAN Phase 3).
+
+    Never presented as an ORIGIN answer: the evidence says at the top which agent
+    actually produced it (NON-NEGOTIABLE RULE 8 in spirit -- do not claim work you
+    did not do).
+    """
+    from agents.heuristic import solve as heuristic_solve
+    sol = heuristic_solve(instruction, dataset_dir, ctx)
+    banner = ("> **This is the baseline heuristic, not ORIGIN.** `origin/engine.py` was "
+              "not importable, so `agents/origin.py` fell back to `agents/heuristic.py`. "
+              "No engine candidates, no model call, no causal filter.\n\n")
+    _RUN["cases"] += 1
+    _RUN["seconds"] += time.time() - t0
+    return Solution(prediction=sol.prediction,
+                    evidence=_ascii(banner + (sol.evidence or "")),
+                    usage=sol.usage)
+
+
 def solve(instruction: str, dataset_dir: Path, ctx: dict) -> Solution:
     t0 = time.time()
     if _RUN["start"] is None:
@@ -214,7 +257,12 @@ def solve(instruction: str, dataset_dir: Path, ctx: dict) -> Solution:
     confidence = "Low"
     t_engine = t0
     try:
-        a = analyze(instruction, Path(dataset_dir), deadline)
+        try:
+            a = analyze(instruction, Path(dataset_dir), deadline)
+        except ImportError:
+            # Person 1's engine has not landed yet. The heuristic is weak but real,
+            # and a real weak answer beats a blank one -- so borrow it and say so.
+            return _via_heuristic(instruction, dataset_dir, ctx, t0)
         t_engine = time.time()
 
         if mode != "engine":
@@ -224,6 +272,7 @@ def solve(instruction: str, dataset_dir: Path, ctx: dict) -> Solution:
             else:
                 llm.usage = {}          # usage is per case, not per run
         decision = _route(a, llm, mode, deadline)
+        decision["usage"] = dict(llm.usage) if llm else {}   # evidence reports it
         answers, confidence, vnotes = _validate(a, decision)
         notes += list(decision.get("notes", [])) + list(vnotes)
         if not answers:
@@ -251,8 +300,12 @@ def solve(instruction: str, dataset_dir: Path, ctx: dict) -> Solution:
     try:
         evidence = _evidence(a, answers, decision, confidence, notes, total)
     except Exception:
-        evidence = ("# ORIGIN\n\nEvidence assembly failed.\n\n```\n"
+        # Keep what we know (the answer, the route, the notes) and add the
+        # assembly failure to it, rather than replacing everything with a traceback.
+        evidence = (_stub_evidence(a, answers, decision, confidence, notes, total)
+                    + "\n### Evidence assembly failed\n\n```\n"
                     + traceback.format_exc() + "```\n")
+    evidence = _ascii(evidence)
 
     asks = a.case.asks if a is not None else {}
     prediction = format_prediction(_for_asks(answers, asks))
